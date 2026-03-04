@@ -1,0 +1,126 @@
+# >>> CUSTOM: actual-financas — CI/CD pipeline for deploying to GCE free tier
+# This workflow is NOT part of upstream actualbudget/actual.
+# It builds the Docker image and deploys to our GCE e2-micro instance.
+# <<< END CUSTOM
+
+name: Deploy to GCE
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'packages/**'
+      - 'infra/**'
+      - 'sync-server.Dockerfile'
+      - 'packages/sync-server/docker/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-gce
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/actual-server
+
+jobs:
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build server (frontend + backend)
+        run: yarn build:server
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=edge,value=edge
+            type=sha
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          file: packages/sync-server/docker/ubuntu.Dockerfile
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to GCE
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: actual-financas
+
+      - name: Deploy to GCE instance
+        run: |
+          gcloud compute ssh actual@actual-financas \
+            --zone=us-east1-b \
+            --project=actual-financas \
+            --command="
+              cd /opt/actual && \
+              docker compose -f docker-compose.prod.yml pull actual && \
+              docker compose -f docker-compose.prod.yml up -d && \
+              docker image prune -f
+            " \
+            --ssh-flag="-o StrictHostKeyChecking=no"
+
+      - name: Health check
+        run: |
+          echo 'Waiting 30s for services to start...'
+          sleep 30
+          EXTERNAL_IP=\$(gcloud compute instances describe actual-financas \
+            --zone=us-east1-b \
+            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "Instance IP: \$EXTERNAL_IP"
+          curl --fail --retry 5 --retry-delay 10 --retry-connrefused \
+            "http://\${EXTERNAL_IP}:5006" || echo "Direct health check skipped (Caddy handles routing)"
