@@ -3,6 +3,16 @@ services:
     image: ghcr.io/pdnn/actual-server:edge
     container_name: actual-budget
     restart: always
+    # Non-sensitive config — versioned here. Sensitive secrets in .env via Secret Manager.
+    environment:
+      ACTUAL_PORT: "5006"
+      ACTUAL_DATA_DIR: /data
+      ACTUAL_LOGIN_METHOD: openid
+      ACTUAL_OPENID_AUTH_METHOD: oauth2
+      ACTUAL_OPENID_PROVIDER_NAME: Google
+      ACTUAL_OPENID_DISCOVERY_URL: https://accounts.google.com/.well-known/openid-configuration
+      ACTUAL_OPENID_SERVER_HOSTNAME: https://actual-financas.fglivraria.com
+      ACTUAL_TOKEN_EXPIRATION: never
     env_file:
       - .env
     ports:

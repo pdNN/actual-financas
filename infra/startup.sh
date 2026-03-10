@@ -11,6 +11,10 @@ if command -v docker &> /dev/null; then
   echo "Docker already installed, skipping setup."
   # Ensure services are running
   systemctl start docker
+  # Generate .env from GCP Secret Manager before starting
+  if [ -f /opt/actual/generate-env.sh ]; then
+    bash /opt/actual/generate-env.sh
+  fi
   # Start app if compose file exists
   if [ -f /opt/actual/docker-compose.prod.yml ]; then
     cd /opt/actual && docker compose -f docker-compose.prod.yml up -d

@@ -6,7 +6,7 @@
 # Replace with your actual domain or DuckDNS subdomain
 # For DuckDNS: actual-financas.duckdns.org
 # For custom domain: finance.yourdomain.com
-actual-financas.duckdns.org {
+actual-financas.fglivraria.com, actual-financas.duckdns.org {
 	reverse_proxy actual:5006
 
 	# Security headers + COOP/COEP for SharedArrayBuffer (required by Actual Budget)

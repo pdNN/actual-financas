@@ -19,6 +19,6 @@ output "ssh_command" {
 }
 
 output "app_url" {
-  description = "URL to access Actual Budget (configure DuckDNS to point to external_ip)"
-  value       = "https://actual-financas.duckdns.org"
+  description = "URL to access Actual Budget"
+  value       = "https://actual-financas.fglivraria.com"
 }

@@ -162,12 +162,20 @@ export function ImportTransactionsModal({
   const queryClient = useQueryClient();
   const dateFormat = useDateFormat() || ('MM/dd/yyyy' as const);
   const [prefs, savePrefs] = useSyncedPrefs();
-  const { data: { list: categories } = { list: [] } } = useCategories();
+  const {
+    data: { list: categories, grouped: categoryGroups } = {
+      list: [],
+      grouped: [],
+    },
+  } = useCategories();
 
   const [multiplierAmount, setMultiplierAmount] = useState('');
   const [loadingState, setLoadingState] = useState<
     null | 'parsing' | 'importing'
   >('parsing');
+  // >>> CUSTOM: AI classification state
+  const [isClassifyingAi, setIsClassifyingAi] = useState(false);
+  // <<< CUSTOM
   const [error, setError] = useState<{
     parsed: boolean;
     message: string;
@@ -523,6 +531,104 @@ export function ImportTransactionsModal({
 
     setTransactions(newTransactions);
   }
+
+  // >>> CUSTOM: AI classification handler
+  async function onClassifyWithAI() {
+    if (transactions.length === 0 || categories.length === 0) {
+      return;
+    }
+
+    setIsClassifyingAi(true);
+    setError(null);
+
+    try {
+      const transactionsForAI = transactions
+        .filter(trans => !trans.isMatchedTransaction)
+        .map((trans, idx) => {
+          const mapped = fieldMappings
+            ? applyFieldMappings(trans, fieldMappings)
+            : trans;
+          return {
+            index: idx,
+            description:
+              mapped.payee_name || mapped.imported_payee || mapped.notes || '',
+            amount:
+              typeof mapped.amount === 'string'
+                ? parseFloat(mapped.amount)
+                : (mapped.amount ?? 0),
+            date: mapped.date || '',
+          };
+        });
+
+      const groupNameMap: Record<string, string> = {};
+      categoryGroups.forEach(g => {
+        groupNameMap[g.id] = g.name;
+      });
+
+      const categoriesForAI = categories
+        .filter(cat => !cat.hidden && cat.name !== 'Starting Balances')
+        .map(cat => ({
+          id: cat.id,
+          name: cat.name,
+          group: groupNameMap[cat.group] || '',
+        }));
+
+      const result = await send('ai-classify-transactions', {
+        transactions: transactionsForAI,
+        categories: categoriesForAI,
+      });
+
+      if (result?.error) {
+        setError({
+          parsed: false,
+          message: t('AI classification failed: {{error}}', {
+            error: result.error,
+          }),
+        });
+        setIsClassifyingAi(false);
+        return;
+      }
+
+      if (result?.classifications) {
+        const nonMatchedTransactions = transactions.filter(
+          trans => !trans.isMatchedTransaction,
+        );
+
+        const newTransactions = transactions.map(trans => {
+          if (trans.isMatchedTransaction) {
+            return trans;
+          }
+
+          const nonMatchedIdx = nonMatchedTransactions.indexOf(trans);
+          const classification = result.classifications.find(
+            (c: { index: number }) => c.index === nonMatchedIdx,
+          );
+
+          if (classification?.categoryId) {
+            return {
+              ...trans,
+              category:
+                categories.find(cat => cat.id === classification.categoryId)
+                  ?.name || trans.category,
+            };
+          }
+          return trans;
+        });
+
+        setTransactions(newTransactions);
+      }
+    } catch (err) {
+      setError({
+        parsed: false,
+        message: t('AI classification failed: {{error}}', {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      });
+    }
+
+    setIsClassifyingAi(false);
+  }
+  // <<< CUSTOM
 
   const importTransactions = useImportTransactionsMutation();
 
@@ -1108,7 +1214,41 @@ export function ImportTransactionsModal({
             </View>
           )}
 
-          <View style={{ flexDirection: 'row', marginTop: 5 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              marginTop: 5,
+              justifyContent: 'space-between',
+            }}
+          >
+            {/* >>> CUSTOM: AI classification button */}
+            <View
+              style={{
+                alignSelf: 'flex-start',
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <ButtonWithLoading
+                isDisabled={
+                  transactions.length === 0 ||
+                  loadingState === 'importing' ||
+                  loadingState === 'parsing'
+                }
+                isLoading={isClassifyingAi}
+                onPress={() => {
+                  void onClassifyWithAI();
+                }}
+                style={{
+                  backgroundColor: isClassifyingAi ? undefined : '#7c3aed',
+                  color: 'white',
+                  borderColor: '#7c3aed',
+                }}
+              >
+                ✨ Classificar com IA
+              </ButtonWithLoading>
+            </View>
+            {/* <<< CUSTOM */}
             {/*Submit Button */}
             <View
               style={{

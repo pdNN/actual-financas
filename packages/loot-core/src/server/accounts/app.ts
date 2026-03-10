@@ -73,6 +73,10 @@ export type AccountHandlers = {
   'simplefin-batch-sync': typeof simpleFinBatchSync;
   'transactions-import': typeof importTransactions;
   'account-unlink': typeof unlinkAccount;
+  // >>> CUSTOM: AI classification endpoint
+  'ai-classify-transactions': typeof aiClassifyTransactions;
+  'ai-status': typeof aiStatus;
+  // <<< CUSTOM
 };
 
 async function updateAccount({
@@ -725,6 +729,66 @@ async function pluggyAiStatus() {
   );
 }
 
+// >>> CUSTOM: AI classification endpoint
+async function aiClassifyTransactions({
+  transactions,
+  categories,
+}: {
+  transactions: Array<{
+    index: number;
+    description: string;
+    amount: number;
+    date: string;
+  }>;
+  categories: Array<{ id: string; name: string; group: string }>;
+}) {
+  const userToken = await asyncStorage.getItem('user-token');
+
+  if (!userToken) {
+    return { error: 'unauthorized' };
+  }
+
+  const serverConfig = getServer();
+  if (!serverConfig) {
+    throw new Error('Failed to get server config.');
+  }
+
+  try {
+    return await post(
+      serverConfig.AI_SERVER + '/classify-transactions',
+      { transactions, categories },
+      {
+        'X-ACTUAL-TOKEN': userToken,
+      },
+      120000,
+    );
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'unknown' };
+  }
+}
+
+async function aiStatus() {
+  const userToken = await asyncStorage.getItem('user-token');
+
+  if (!userToken) {
+    return { error: 'unauthorized' };
+  }
+
+  const serverConfig = getServer();
+  if (!serverConfig) {
+    throw new Error('Failed to get server config.');
+  }
+
+  return post(
+    serverConfig.AI_SERVER + '/status',
+    {},
+    {
+      'X-ACTUAL-TOKEN': userToken,
+    },
+  );
+}
+// <<< CUSTOM
+
 async function simpleFinAccounts() {
   const userToken = await asyncStorage.getItem('user-token');
 
@@ -1285,3 +1349,7 @@ app.method('accounts-bank-sync', accountsBankSync);
 app.method('simplefin-batch-sync', simpleFinBatchSync);
 app.method('transactions-import', mutator(undoable(importTransactions)));
 app.method('account-unlink', mutator(unlinkAccount));
+// >>> CUSTOM: AI classification endpoint
+app.method('ai-classify-transactions', aiClassifyTransactions);
+app.method('ai-status', aiStatus);
+// <<< CUSTOM

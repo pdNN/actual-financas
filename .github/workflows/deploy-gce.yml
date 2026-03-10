@@ -91,6 +91,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: infra
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -101,6 +105,15 @@ jobs:
         with:
           project_id: actual-financas
 
+      - name: Sync infra files to VM
+        run: |
+          SSH="gcloud compute ssh actual@actual-financas --zone=us-east1-b --project=actual-financas"
+          for f in docker-compose.prod.yml Caddyfile generate-env.sh backup.sh restore.sh; do
+            echo "Uploading $f..."
+            cat "infra/$f" | $SSH --command="sudo tee /opt/actual/$f > /dev/null"
+          done
+          $SSH --command="sudo chmod +x /opt/actual/generate-env.sh /opt/actual/backup.sh /opt/actual/restore.sh"
+
       - name: Deploy to GCE instance
         run: |
           gcloud compute ssh actual@actual-financas \
@@ -108,11 +121,11 @@ jobs:
             --project=actual-financas \
             --command="
               cd /opt/actual && \
-              docker compose -f docker-compose.prod.yml pull actual && \
-              docker compose -f docker-compose.prod.yml up -d && \
-              docker image prune -f
-            " \
-            --ssh-flag="-o StrictHostKeyChecking=no"
+              sudo bash generate-env.sh && \
+              sudo docker compose -f docker-compose.prod.yml pull actual && \
+              sudo docker compose -f docker-compose.prod.yml up -d && \
+              sudo docker image prune -f
+            "
 
       - name: Health check
         run: |

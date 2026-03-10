@@ -9,6 +9,9 @@ import rateLimit from 'express-rate-limit';
 import { bootstrap } from './account-db';
 import * as accountApp from './app-account';
 import * as adminApp from './app-admin';
+// >>> CUSTOM: AI classification endpoint
+import * as aiApp from './app-ai/app-ai';
+// <<< CUSTOM
 import * as corsApp from './app-cors-proxy';
 import * as goCardlessApp from './app-gocardless/app-gocardless';
 import * as openidApp from './app-openid';
@@ -56,6 +59,9 @@ app.use(
 
 app.use('/sync', syncApp.handlers);
 app.use('/account', accountApp.handlers);
+// >>> CUSTOM: AI classification endpoint
+app.use('/ai', aiApp.handlers);
+// <<< CUSTOM
 app.use('/gocardless', goCardlessApp.handlers);
 app.use('/simplefin', simpleFinApp.handlers);
 app.use('/pluggyai', pluggai.handlers);
