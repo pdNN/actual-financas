@@ -9,9 +9,9 @@ import rateLimit from 'express-rate-limit';
 import { bootstrap } from './account-db';
 import * as accountApp from './app-account';
 import * as adminApp from './app-admin';
-import * as akahuApp from './app-akahu/app-akahu.js';
 // >>> CUSTOM: AI classification endpoint
 import * as aiApp from './app-ai/app-ai';
+import * as akahuApp from './app-akahu/app-akahu.js';
 // <<< CUSTOM
 import * as corsApp from './app-cors-proxy';
 import * as enableBankingApp from './app-enablebanking/app-enablebanking';

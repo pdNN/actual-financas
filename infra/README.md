@@ -111,6 +111,17 @@ printf %s "SEU_VALOR" | gcloud secrets create AI_STUDIO_API_KEY           --data
 
 Use `printf` e não `echo`: o `echo` acrescenta `\n` ao valor, e um client secret com quebra de linha no fim falha de um jeito difícil de diagnosticar.
 
+> **`AI_STUDIO_API_KEY` sozinha não liga nada.** A classificação por IA está
+> desligada por padrão desde `specs/001-desligar-padrao-enriquecimento/`. Para
+> ligar, é preciso também definir `ACTUAL_AI_CLASSIFICATION_ENABLED=true` no
+> ambiente do container. Enquanto isso não for feito, o servidor recusa qualquer
+> pedido de classificação e o botão não aparece na importação.
+>
+> Ela está desligada porque é anterior à constituição do projeto e viola os
+> princípios III (determinístico antes de IA), IV (provider plugável) e VII
+> (teste). A feature `003` do backlog vai reconstruí-la — o código atual foi
+> mantido justamente para ser o ponto de partida dela.
+
 Para rotacionar: `gcloud secrets versions add NOME --data-file=-`. O `generate-env.sh` sempre lê a versão `latest`, então basta um deploy para valer.
 
 ### 6. DNS e OAuth

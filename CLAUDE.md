@@ -100,6 +100,12 @@ Saída de IA é **sugestão revisável** — nunca grava categoria sozinha sem
 confirmação ou sem confiança acima do limiar. Todo acerto confirmado realimenta a
 camada determinística.
 
+> **A classificação por IA existente está DESLIGADA por padrão.** Ela é anterior
+> à constituição e viola os princípios III, IV e VII. O código foi mantido porque
+> é o ponto de partida da feature `003`, que vai reconstruí-la. Para ligar:
+> `ACTUAL_AI_CLASSIFICATION_ENABLED=true` no servidor, além da credencial.
+> Ter só a credencial **não** liga. Ver `specs/001-desligar-padrao-enriquecimento/spec.md`.
+
 Provider de IA é **plugável e configurável**, nunca hardcoded. Chamadas sempre em
 lote. Sem modelo local na VM.
 

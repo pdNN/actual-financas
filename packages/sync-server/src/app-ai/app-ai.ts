@@ -4,7 +4,7 @@ import express from 'express';
 import {
   requestLoggerMiddleware,
   validateSessionMiddleware,
-} from '../util/middlewares.js';
+} from '#util/middlewares';
 
 const app = express();
 export { app as handlers };
@@ -32,17 +32,49 @@ type ClassificationResult = {
   confidence: number;
 };
 
+/**
+ * A classificação por IA fica DESLIGADA por padrão.
+ *
+ * Ela é anterior à constituição do projeto e viola três princípios: chama o
+ * modelo sem tentar a camada determinística antes, não aprende, e tem provider
+ * fixo no código. A feature 003 reconstrói isso; até lá, só roda se alguém
+ * ligar de propósito.
+ *
+ * Ter credencial NÃO liga — antes bastava a chave existir, e era assim que a
+ * funcionalidade acabava ativa sem ninguém ter decidido.
+ * Ver specs/001-desligar-padrao-enriquecimento/spec.md
+ */
+function isEnabled(): boolean {
+  const flag = process.env.ACTUAL_AI_CLASSIFICATION_ENABLED;
+  return flag === 'true' || flag === 'TRUE' || flag === '1';
+}
+
+function isConfigured(): boolean {
+  return isEnabled() && !!process.env.ACTUAL_GEMINI_API_KEY;
+}
+
 app.post('/status', (_req, res) => {
-  const apiKey = process.env.ACTUAL_GEMINI_API_KEY;
   res.send({
     status: 'ok',
     data: {
-      configured: !!apiKey,
+      enabled: isEnabled(),
+      configured: isConfigured(),
     },
   });
 });
 
 app.post('/classify-transactions', async (req, res) => {
+  // A recusa vive no servidor de propósito: esconder o botão não garante nada,
+  // e um cliente desatualizado ainda consegue chamar este endpoint.
+  if (!isEnabled()) {
+    res.status(403).send({
+      status: 'error',
+      reason:
+        'AI classification is not enabled. Set ACTUAL_AI_CLASSIFICATION_ENABLED=true to turn it on.',
+    });
+    return;
+  }
+
   const apiKey = process.env.ACTUAL_GEMINI_API_KEY;
 
   if (!apiKey) {
