@@ -117,17 +117,37 @@ jobs:
           echo "value=$TAG" >> "$GITHUB_OUTPUT"
           echo "Publicando: $TAG"
 
+      # Enquanto a infra não tiver sido provisionada (ver infra/README.md), não
+      # há como autenticar. Nesse caso a imagem já foi publicada e o deploy é
+      # pulado com aviso — melhor que falhar o build inteiro por falta de setup.
+      - name: Check whether GCP is configured
+        id: gcp
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          APP_SA: ${{ secrets.GCP_APP_DEPLOYER_SA }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$APP_SA" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GCP não configurado — deploy pulado. A imagem ${{ steps.tag.outputs.value }} foi publicada no GHCR."
+          fi
+
       - name: Authenticate to GCP (WIF)
+        if: steps.gcp.outputs.configured == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_APP_DEPLOYER_SA }}
 
       - uses: google-github-actions/setup-gcloud@v2
+        if: steps.gcp.outputs.configured == 'true'
         with:
           project_id: ${{ env.PROJECT }}
 
       - name: Sync infra files to VM
+        if: steps.gcp.outputs.configured == 'true'
         run: |
           set -euo pipefail
           for f in docker-compose.prod.yml Caddyfile generate-env.sh deploy.sh backup.sh restore.sh; do
@@ -141,6 +161,7 @@ jobs:
             --command="sudo chmod +x /opt/actual/*.sh"
 
       - name: Deploy
+        if: steps.gcp.outputs.configured == 'true'
         run: |
           set -euo pipefail
           gcloud compute ssh "$INSTANCE" \
@@ -148,6 +169,7 @@ jobs:
             --command="sudo /opt/actual/deploy.sh '${{ steps.tag.outputs.value }}'"
 
       - name: Smoke test
+        if: steps.gcp.outputs.configured == 'true'
         run: |
           set -euo pipefail
           # Valida o caminho real do usuário — pela URL pública, atravessando

@@ -1,8 +1,16 @@
 # >>> CUSTOM: actual-financas — pipeline de Terraform
 # Não faz parte do upstream actualbudget/actual.
 #
-# plan em PR (portão de leitura, comentado no próprio PR) e apply no merge.
-# A aprovação é a revisão do PR: você lê o plan no comentário antes de aprovar.
+# Dois níveis, de propósito:
+#
+#   1. `validate` — fmt e validate não precisam de credencial nenhuma, então
+#      rodam sempre, desde o primeiro PR, mesmo antes da infra existir.
+#   2. `plan` / `apply` — dependem do GCP. Ficam pulados enquanto os secrets do
+#      WIF não estiverem configurados, em vez de deixar todo PR vermelho.
+#      Ver o passo a passo em infra/README.md.
+#
+# plan em PR (comentado no próprio PR) e apply no merge. A aprovação é a
+# revisão do PR: você lê o plan no comentário antes de aprovar.
 # <<< CUSTOM
 
 name: Terraform
@@ -29,7 +37,7 @@ permissions:
   pull-requests: write # para comentar o plan no PR
 
 env:
-  # Fixada de propósito: "latest" faz o CI mudar de versão sem ninguém pedir,
+  # Fixada de propósito: "latest" faria o CI mudar de versão sem ninguém pedir,
   # e uma versão nova pode reescrever o state.
   TF_VERSION: '1.9.8'
 
@@ -40,8 +48,67 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  terraform:
-    name: Terraform
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    outputs:
+      gcp_configured: ${{ steps.check.outputs.gcp_configured }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive -no-color
+        working-directory: infra
+
+      # -backend=false não fala com o GCS, então valida a configuração sem
+      # precisar de credencial nem do bucket de state existir.
+      - name: Terraform validate (infra)
+        working-directory: infra
+        run: |
+          set -euo pipefail
+          terraform init -backend=false -input=false -no-color -lockfile=readonly
+          terraform validate -no-color
+
+      - name: Terraform validate (bootstrap)
+        working-directory: infra/bootstrap
+        run: |
+          set -euo pipefail
+          terraform init -backend=false -input=false -no-color -lockfile=readonly
+          terraform validate -no-color
+
+      # O contexto `secrets` não pode ser usado em `if:` de job, então a
+      # verificação vira um output.
+      - name: Check whether GCP is configured
+        id: check
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          TF_SA: ${{ secrets.GCP_TF_DEPLOYER_SA }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$TF_SA" ]; then
+            echo "gcp_configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gcp_configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Terraform · plan pulado"
+              echo
+              echo "Os secrets \`GCP_WORKLOAD_IDENTITY_PROVIDER\` e \`GCP_TF_DEPLOYER_SA\` ainda não estão configurados,"
+              echo "então não há como autenticar no GCP. \`fmt\` e \`validate\` rodaram normalmente."
+              echo
+              echo "Para habilitar o plan, siga **Instalação do zero** em \`infra/README.md\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  plan:
+    name: Plan & Apply
+    needs: validate
+    if: needs.validate.outputs.gcp_configured == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,14 +128,8 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
-      - name: Terraform fmt
-        run: terraform fmt -check -recursive -no-color
-
       - name: Terraform init
         run: terraform init -input=false -no-color -lockfile=readonly
-
-      - name: Terraform validate
-        run: terraform validate -no-color
 
       - name: Terraform plan
         id: plan
