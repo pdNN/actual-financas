@@ -1,45 +1,59 @@
-# >>> CUSTOM: actual-financas — CI/CD pipeline for deploying to GCE free tier
-# This workflow is NOT part of upstream actualbudget/actual.
-# It builds the Docker image and deploys to our GCE e2-micro instance.
-# <<< END CUSTOM
+# >>> CUSTOM: actual-financas — build e deploy na VM do GCE
+# Não faz parte do upstream actualbudget/actual.
+#
+# Constrói a imagem, publica no GHCR com tag imutável (SHA do commit) e manda a
+# VM subir exatamente essa tag. O deploy espera o healthcheck do container e faz
+# rollback sozinho se a versão nova não subir (ver infra/deploy.sh).
+# <<< CUSTOM
 
 name: Deploy to GCE
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [main, master]
     paths:
       - 'packages/**'
       - 'infra/**'
       - 'sync-server.Dockerfile'
-      - 'packages/sync-server/docker/**'
+      - '.github/workflows/deploy-gce.yml'
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Tag já publicada para subir (vazio = constrói do commit atual). Use para voltar a uma versão anterior.'
+        type: string
+        required: false
 
 concurrency:
+  # Nunca cancela um deploy no meio: cancelar entre o `pull` e o `up -d` deixa
+  # a VM num estado indefinido.
   group: deploy-gce
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
   packages: write
+  id-token: write # obrigatório para o WIF
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/actual-server
+  ZONE: us-east1-b
+  INSTANCE: actual-financas
+  PROJECT: actual-financas
 
 jobs:
   build:
-    name: Build & Push Docker Image
+    name: Build & Push
     runs-on: ubuntu-latest
+    # Num rollback por workflow_dispatch a imagem já existe; reconstruir seria
+    # desperdício e mudaria o artefato que queremos restaurar.
+    if: github.event.inputs.image_tag == ''
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
+      image_tag: sha-${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
@@ -49,91 +63,114 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Build server (frontend + backend)
+      - name: Build server
         run: yarn build:server
         env:
           NODE_OPTIONS: --max_old_space_size=4096
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.repository_owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=edge,value=edge
-            type=sha
-            type=raw,value=latest
-
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           file: packages/sync-server/docker/ubuntu.Dockerfile
           platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
+          # `sha-<commit>` é a tag que o deploy usa — imutável, e por isso
+          # permite rollback determinístico. `edge` fica só como apelido
+          # para humanos; nada automatizado depende dela.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:edge
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy to GCE
+    name: Deploy
     needs: build
+    # `always()` + checagem explícita: num rollback o job `build` é pulado, e um
+    # need pulado reprovaria o success() implícito, cancelando o deploy em cascata.
+    if: always() && needs.build.result != 'failure' && needs.build.result != 'cancelled'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: infra
 
-      - name: Authenticate to GCP
+      - name: Resolve image tag
+        id: tag
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.image_tag || needs.build.outputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            echo "::error::nenhuma tag de imagem para publicar"
+            exit 1
+          fi
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publicando: $TAG"
+
+      - name: Authenticate to GCP (WIF)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_APP_DEPLOYER_SA }}
 
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: actual-financas
+          project_id: ${{ env.PROJECT }}
 
       - name: Sync infra files to VM
         run: |
-          SSH="gcloud compute ssh actual@actual-financas --zone=us-east1-b --project=actual-financas"
-          for f in docker-compose.prod.yml Caddyfile generate-env.sh backup.sh restore.sh; do
-            echo "Uploading $f..."
-            cat "infra/$f" | $SSH --command="sudo tee /opt/actual/$f > /dev/null"
+          set -euo pipefail
+          for f in docker-compose.prod.yml Caddyfile generate-env.sh deploy.sh backup.sh restore.sh; do
+            echo "enviando $f"
+            gcloud compute ssh "$INSTANCE" \
+              --zone="$ZONE" --project="$PROJECT" --tunnel-through-iap --quiet \
+              --command="sudo tee /opt/actual/$f > /dev/null" < "infra/$f"
           done
-          $SSH --command="sudo chmod +x /opt/actual/generate-env.sh /opt/actual/backup.sh /opt/actual/restore.sh"
+          gcloud compute ssh "$INSTANCE" \
+            --zone="$ZONE" --project="$PROJECT" --tunnel-through-iap --quiet \
+            --command="sudo chmod +x /opt/actual/*.sh"
 
-      - name: Deploy to GCE instance
+      - name: Deploy
         run: |
-          gcloud compute ssh actual@actual-financas \
-            --zone=us-east1-b \
-            --project=actual-financas \
-            --command="
-              cd /opt/actual && \
-              sudo bash generate-env.sh && \
-              sudo docker compose -f docker-compose.prod.yml pull actual && \
-              sudo docker compose -f docker-compose.prod.yml up -d && \
-              sudo docker image prune -f
-            "
+          set -euo pipefail
+          gcloud compute ssh "$INSTANCE" \
+            --zone="$ZONE" --project="$PROJECT" --tunnel-through-iap --quiet \
+            --command="sudo /opt/actual/deploy.sh '${{ steps.tag.outputs.value }}'"
 
-      - name: Health check
+      - name: Smoke test
         run: |
-          echo 'Waiting 30s for services to start...'
-          sleep 30
-          EXTERNAL_IP=\$(gcloud compute instances describe actual-financas \
-            --zone=us-east1-b \
-            --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-          echo "Instance IP: \$EXTERNAL_IP"
-          curl --fail --retry 5 --retry-delay 10 --retry-connrefused \
-            "http://\${EXTERNAL_IP}:5006" || echo "Direct health check skipped (Caddy handles routing)"
+          set -euo pipefail
+          # Valida o caminho real do usuário — pela URL pública, atravessando
+          # Caddy e TLS —, não só o container isolado.
+          URL="https://actual-financas.fglivraria.com"
+          echo "verificando $URL"
+          curl --fail --silent --show-error --location \
+            --retry 6 --retry-delay 10 --retry-all-errors \
+            --max-time 30 --output /dev/null "$URL"
+          echo "aplicação respondendo"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy"
+            echo
+            echo "| Item | Valor |"
+            echo "| --- | --- |"
+            echo "| Imagem | \`${{ steps.tag.outputs.value }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Resultado | ${{ job.status }} |"
+            echo
+            echo "Para voltar a uma versão anterior, rode este workflow manualmente"
+            echo "informando a tag \`sha-<commit>\` desejada em **image_tag**."
+          } >> "$GITHUB_STEP_SUMMARY"

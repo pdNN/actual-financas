@@ -1,0 +1,121 @@
+# >>> CUSTOM: actual-financas — pipeline de Terraform
+# Não faz parte do upstream actualbudget/actual.
+#
+# plan em PR (portão de leitura, comentado no próprio PR) e apply no merge.
+# A aprovação é a revisão do PR: você lê o plan no comentário antes de aprovar.
+# <<< CUSTOM
+
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**.tf'
+      - 'infra/**.tfvars'
+      - 'infra/**.hcl'
+      - '.github/workflows/terraform.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'infra/**.tf'
+      - 'infra/**.tfvars'
+      - 'infra/**.hcl'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # obrigatório para o WIF emitir o token OIDC
+  pull-requests: write # para comentar o plan no PR
+
+env:
+  # Fixada de propósito: "latest" faz o CI mudar de versão sem ninguém pedir,
+  # e uma versão nova pode reescrever o state.
+  TF_VERSION: '1.9.8'
+
+concurrency:
+  # Nunca cancela um apply pela metade — state corrompido é bem pior que
+  # esperar a fila.
+  group: terraform-${{ github.event_name == 'pull_request' && github.ref || 'prod' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_TF_DEPLOYER_SA }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive -no-color
+
+      - name: Terraform init
+        run: terraform init -input=false -no-color -lockfile=readonly
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        id: plan
+        run: |
+          set -euo pipefail
+          # -detailed-exitcode: 0 = sem mudança, 2 = há mudança, 1 = erro.
+          # Sem isso não dá para distinguir "tudo certo" de "vai mudar coisa".
+          terraform plan -input=false -no-color -lock-timeout=5m \
+            -out=tfplan -detailed-exitcode 2>&1 | tee plan.txt && code=0 || code=$?
+          if [ "$code" -eq 1 ]; then
+            exit 1
+          fi
+          echo "has_changes=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          HAS_CHANGES: ${{ steps.plan.outputs.has_changes }}
+        with:
+          script: |
+            const fs = require('fs');
+            // github-script roda na raiz do repo, não no working-directory do job.
+            const full = fs.readFileSync('infra/plan.txt', 'utf8');
+            // Comentário do GitHub tem teto de 65536 caracteres; o fim do plan
+            // (o resumo "Plan: X to add...") é a parte que importa.
+            const LIMIT = 60000;
+            const body = full.length > LIMIT
+              ? `_(início truncado — plan completo no log da action)_\n\n` + full.slice(-LIMIT)
+              : full;
+            const header = '<!-- terraform-plan -->';
+            const title = process.env.HAS_CHANGES === 'true'
+              ? '### Terraform plan — há mudanças a aplicar'
+              : '### Terraform plan — nenhuma mudança';
+            const content = `${header}\n${title}\n\n<details><summary>Ver plan</summary>\n\n\`\`\`terraform\n${body}\n\`\`\`\n\n</details>`;
+
+            // Atualiza o comentário anterior em vez de empilhar um por push.
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(header));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body: content });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body: content });
+            }
+
+      - name: Terraform apply
+        if: github.event_name != 'pull_request'
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan

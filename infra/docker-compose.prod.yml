@@ -1,6 +1,9 @@
 services:
   actual:
-    image: ghcr.io/pdnn/actual-server:edge
+    # Tag imutável (SHA do commit), injetada pelo deploy.sh. O default `edge`
+    # existe só para subir à mão numa emergência — deploy normal sempre passa
+    # um SHA, porque `edge` muda debaixo dos pés e impossibilita rollback.
+    image: ghcr.io/pdnn/actual-server:${ACTUAL_IMAGE_TAG:-edge}
     container_name: actual-budget
     restart: always
     # Non-sensitive config — versioned here. Sensitive secrets in .env via Secret Manager.
@@ -15,8 +18,12 @@ services:
       ACTUAL_TOKEN_EXPIRATION: never
     env_file:
       - .env
+    # Só no loopback: o Caddy alcança este serviço pelo nome na rede do Docker
+    # (`reverse_proxy actual:5006`), então não há motivo para a porta escutar em
+    # 0.0.0.0. Mantida em 127.0.0.1 para permitir `curl localhost:5006` ao
+    # depurar na VM.
     ports:
-      - '5006:5006'
+      - '127.0.0.1:5006:5006'
     volumes:
       - /opt/actual/data:/data
     networks:
