@@ -42,10 +42,15 @@ resource "google_compute_instance" "actual" {
 
   boot_disk {
     initialize_params {
-      image  = var.boot_image
-      size   = var.disk_size_gb
-      type   = "pd-standard"
-      labels = local.common_labels
+      image = var.boot_image
+      size  = var.disk_size_gb
+      type  = "pd-standard"
+      # SEM labels aqui: labels em boot_disk.initialize_params são imutáveis
+      # no provider — mudar esse campo força RECRIAÇÃO do disco (destrói e
+      # recria), o que apagaria o SQLite do orçamento. Não vale o risco por
+      # uma label. Se quiser rotular o disco, faça fora do Terraform:
+      # gcloud compute disks update actual-financas --zone=us-east1-b
+      #   --update-labels=application=actual-financas,environment=prod
     }
   }
 
@@ -63,9 +68,14 @@ resource "google_compute_instance" "actual" {
     # IAM: o CI entra com a identidade da app-deployer, e revogar acesso é
     # remover um papel, não editar metadata da instância.
     enable-oslogin = "TRUE"
-  }
 
-  metadata_startup_script = file("${path.module}/startup.sh")
+    # Chave crua, não o atributo `metadata_startup_script`: esse atributo é
+    # ForceNew no provider — defini-lo pela primeira vez numa instância já
+    # existente (como esta, importada) força RECRIAÇÃO do disco, mesmo a API
+    # do GCE permitindo atualizar o startup-script ao vivo. A chave `metadata`
+    # comum não tem essa restrição e atualiza em tempo real.
+    startup-script = file("${path.module}/startup.sh")
+  }
 
   scheduling {
     automatic_restart   = true
@@ -84,8 +94,11 @@ resource "google_compute_instance" "actual" {
   allow_stopping_for_update = true
 
   lifecycle {
-    # A VM é gado, mas o disco tem o SQLite. Recriação precisa ser deliberada:
-    # o plan mostra a destruição e você decide.
-    ignore_changes = [metadata_startup_script]
+    # O disco de boot tem o SQLite do orçamento. prevent_destroy faz o
+    # `apply` FALHAR se qualquer mudança futura exigir destruir/recriar esta
+    # instância, em vez de aplicar silenciosamente — foi quase o que
+    # aconteceu com a mudança invisível de "labels" em
+    # boot_disk.initialize_params, que força recriação do disco.
+    prevent_destroy = true
   }
 }
