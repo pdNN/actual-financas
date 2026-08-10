@@ -1,7 +1,7 @@
 ---
 name: speckit-clarify
 description: Faz até 5 perguntas dirigidas para eliminar ambiguidades da especificação ativa e registra as respostas nela. Segundo passo do fluxo SDD do actual-financas. Use após /speckit.specify, quando houver marcadores [NECESSITA ESCLARECIMENTO], ou ao invocar /speckit.clarify.
-argument-hint: "(opcional) área específica a esclarecer"
+argument-hint: '(opcional) área específica a esclarecer'
 user-invocable: true
 ---
 

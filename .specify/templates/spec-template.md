@@ -7,7 +7,7 @@
 
 ---
 
-## Cenários de Usuário e Testes *(obrigatório)*
+## Cenários de Usuário e Testes _(obrigatório)_
 
 <!--
   IMPORTANTE: as histórias devem ser PRIORIZADAS como jornadas de usuário
@@ -61,7 +61,7 @@
 
 ---
 
-## Requisitos *(obrigatório)*
+## Requisitos _(obrigatório)_
 
 ### Requisitos Funcionais
 
@@ -75,7 +75,7 @@
 - **RF-002**: Sistema DEVE [capacidade específica]
 - **RF-003**: Sistema NÃO DEVE [restrição explícita, quando relevante]
 
-*Exemplo de requisito com incerteza marcada:*
+_Exemplo de requisito com incerteza marcada:_
 
 - **RF-00X**: Sistema DEVE notificar o usuário via [NECESSITA ESCLARECIMENTO: canal não definido — push, e-mail, só na tela?]
 
@@ -88,13 +88,13 @@
 > Não pergunte sobre: retenção de dados, metas de performance, tratamento de erro,
 > método de autenticação ou padrão de integração — assuma o padrão do projeto.
 
-### Entidades-Chave *(incluir se a feature envolve dados)*
+### Entidades-Chave _(incluir se a feature envolve dados)_
 
 - **[Entidade]**: o que representa, atributos relevantes, como se relaciona com as demais.
 
 ---
 
-## Critérios de Sucesso *(obrigatório)*
+## Critérios de Sucesso _(obrigatório)_
 
 <!--
   AÇÃO NECESSÁRIA: defina critérios mensuráveis. Eles precisam ser

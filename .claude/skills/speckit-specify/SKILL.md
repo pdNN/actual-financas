@@ -1,7 +1,7 @@
 ---
 name: speckit-specify
 description: Cria ou atualiza a especificação de uma feature a partir de uma descrição em linguagem natural. Primeiro passo do fluxo SDD do actual-financas. Use quando o usuário pedir uma feature nova, disser "quero implementar X", "nova demanda", ou invocar /speckit.specify.
-argument-hint: "Descreva a feature que você quer especificar"
+argument-hint: 'Descreva a feature que você quer especificar'
 user-invocable: true
 ---
 
@@ -69,6 +69,7 @@ Preencha `SPEC_FILE` seguindo o template. Em **português (pt-BR)**.
 **No máximo 3 marcadores `[NECESSITA ESCLARECIMENTO: pergunta]`.**
 
 Use só para decisões que:
+
 - mudam bastante o escopo ou a experiência;
 - têm mais de uma leitura razoável com implicações diferentes;
 - não têm um padrão razoável.

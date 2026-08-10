@@ -16,18 +16,18 @@
 
 <!-- Marque como NECESSITA ESCLARECIMENTO tudo que ainda não está resolvido. -->
 
-| Item | Valor |
-|---|---|
-| **Linguagem / versão** | TypeScript, Node >= 22 |
-| **Dependências principais** | [ex.: React 19, Express, better-sqlite3, …] |
-| **Armazenamento** | SQLite (better-sqlite3), via AQL / `loot-core` |
-| **Testes** | Vitest (`*.test.ts` ao lado do fonte); Playwright para e2e |
-| **Plataforma alvo** | Navegador (PWA) + `sync-server` em GCE e2-micro |
-| **Tipo de projeto** | Monorepo Yarn 4 workspaces, orquestrado por lage |
-| **Metas de performance** | [ex.: classificar 300 transações em < 30s] |
-| **Restrições** | 384MB de RAM no container; sem dependência pesada no `sync-server` |
-| **Escala / escopo** | 2 usuários, ~[N] transações/mês |
-| **Pacotes tocados** | [ex.: `packages/loot-core`, `packages/desktop-client`] |
+| Item                        | Valor                                                              |
+| --------------------------- | ------------------------------------------------------------------ |
+| **Linguagem / versão**      | TypeScript, Node >= 22                                             |
+| **Dependências principais** | [ex.: React 19, Express, better-sqlite3, …]                        |
+| **Armazenamento**           | SQLite (better-sqlite3), via AQL / `loot-core`                     |
+| **Testes**                  | Vitest (`*.test.ts` ao lado do fonte); Playwright para e2e         |
+| **Plataforma alvo**         | Navegador (PWA) + `sync-server` em GCE e2-micro                    |
+| **Tipo de projeto**         | Monorepo Yarn 4 workspaces, orquestrado por lage                   |
+| **Metas de performance**    | [ex.: classificar 300 transações em < 30s]                         |
+| **Restrições**              | 384MB de RAM no container; sem dependência pesada no `sync-server` |
+| **Escala / escopo**         | 2 usuários, ~[N] transações/mês                                    |
+| **Pacotes tocados**         | [ex.: `packages/loot-core`, `packages/desktop-client`]             |
 
 ---
 
@@ -111,5 +111,5 @@ Ao final, **reavaliar a Verificação da Constituição**.
 > **Preencher SOMENTE se a Verificação da Constituição tiver violações que precisam de justificativa.**
 
 | Violação | Por que é necessária | Por que a alternativa mais simples foi rejeitada |
-|---|---|---|
-| | | |
+| -------- | -------------------- | ------------------------------------------------ |
+|          |                      |                                                  |

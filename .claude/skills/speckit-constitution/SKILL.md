@@ -1,7 +1,7 @@
 ---
 name: speckit-constitution
 description: Cria ou emenda a constituição do projeto em .specify/memory/constitution.md, com versionamento semântico e relatório de impacto. Use ao invocar /speckit.constitution ou quando o usuário quiser mudar as regras/princípios do projeto.
-argument-hint: "Descreva o princípio ou regra a adicionar/alterar"
+argument-hint: 'Descreva o princípio ou regra a adicionar/alterar'
 user-invocable: true
 ---
 

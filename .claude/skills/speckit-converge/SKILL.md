@@ -1,7 +1,7 @@
 ---
 name: speckit-converge
 description: Compara o código real com spec, plano e tarefas da feature ativa e acrescenta em tasks.md uma fase de convergência com o que falta. Use ao invocar /speckit.converge, ou quando a implementação divergiu do que foi especificado.
-argument-hint: "(opcional) área a convergir"
+argument-hint: '(opcional) área a convergir'
 user-invocable: true
 ---
 

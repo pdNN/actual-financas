@@ -5,7 +5,7 @@ services:
     restart: always
     # Non-sensitive config — versioned here. Sensitive secrets in .env via Secret Manager.
     environment:
-      ACTUAL_PORT: "5006"
+      ACTUAL_PORT: '5006'
       ACTUAL_DATA_DIR: /data
       ACTUAL_LOGIN_METHOD: openid
       ACTUAL_OPENID_AUTH_METHOD: oauth2
@@ -16,7 +16,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5006:5006"
+      - '5006:5006'
     volumes:
       - /opt/actual/data:/data
     networks:
@@ -28,9 +28,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://localhost:5006').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 30s
@@ -43,8 +43,8 @@ services:
     container_name: caddy
     restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /opt/actual/caddy_data:/data

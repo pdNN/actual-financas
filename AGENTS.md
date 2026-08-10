@@ -7,6 +7,7 @@ Guia técnico para agentes de IA que trabalham neste repositório.
 > versão do fork e traga do upstream apenas fatos técnicos novos.
 >
 > **Hierarquia de autoridade:**
+>
 > 1. `.specify/memory/constitution.md` — as regras do projeto. Vence sempre.
 > 2. `CLAUDE.md` — resumo operacional e fluxo SDD.
 > 3. Este arquivo — referência técnica de arquitetura e estilo.
@@ -94,19 +95,19 @@ yarn typecheck && yarn lint && yarn test
 
 ## 5. Pacotes
 
-| Pacote | Alias | Papel |
-|---|---|---|
-| `packages/loot-core/` | `loot-core` | Lógica de negócio, banco, orçamento, regras, sync. Agnóstico de plataforma. |
-| `packages/desktop-client/` | `@actual-app/web` | UI React 19 + Vite. PWA, responsivo, temas. |
-| `packages/desktop-electron/` | — | Invólucro Electron. |
-| `packages/sync-server/` | `@actual-app/sync-server` | Servidor Express de sync + serve os estáticos. |
-| `packages/api/` | `@actual-app/api` | API Node.js programática. |
-| `packages/component-library/` | `@actual-app/components` | Componentes de UI e ícones (gerados — não edite). |
-| `packages/crdt/` | `@actual-app/crdt` | CRDT do sync. |
-| `packages/plugins-service/` | — | Serviço de plugins. |
-| `packages/eslint-plugin-actual/` | — | Regras de lint próprias (i18n, tipografia, logger). |
-| `packages/docs/` | — | Site de documentação (Docusaurus). |
-| `packages/custom/` | — | **Nosso código, fora do upstream.** |
+| Pacote                           | Alias                     | Papel                                                                       |
+| -------------------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| `packages/loot-core/`            | `loot-core`               | Lógica de negócio, banco, orçamento, regras, sync. Agnóstico de plataforma. |
+| `packages/desktop-client/`       | `@actual-app/web`         | UI React 19 + Vite. PWA, responsivo, temas.                                 |
+| `packages/desktop-electron/`     | —                         | Invólucro Electron.                                                         |
+| `packages/sync-server/`          | `@actual-app/sync-server` | Servidor Express de sync + serve os estáticos.                              |
+| `packages/api/`                  | `@actual-app/api`         | API Node.js programática.                                                   |
+| `packages/component-library/`    | `@actual-app/components`  | Componentes de UI e ícones (gerados — não edite).                           |
+| `packages/crdt/`                 | `@actual-app/crdt`        | CRDT do sync.                                                               |
+| `packages/plugins-service/`      | —                         | Serviço de plugins.                                                         |
+| `packages/eslint-plugin-actual/` | —                         | Regras de lint próprias (i18n, tipografia, logger).                         |
+| `packages/docs/`                 | —                         | Site de documentação (Docusaurus).                                          |
+| `packages/custom/`               | —                         | **Nosso código, fora do upstream.**                                         |
 
 ### Diretórios que importam
 
@@ -161,7 +162,7 @@ export function MyComponent({ value }: MyComponentProps) {
 ### Ordem de imports (o lint impõe)
 
 1. React → 2. Node.js → 3. pacotes externos → 4. pacotes do Actual
-(`loot-core`, `@actual-app/components`) → 5. pai → 6. irmão → 7. índice.
+   (`loot-core`, `@actual-app/components`) → 5. pai → 6. irmão → 7. índice.
 
 Linha em branco entre grupos.
 
@@ -226,13 +227,13 @@ após instalar dependências.
 Node >= 22, Yarn ^4.9.1. Módulos nativos (`better-sqlite3`, `bcrypt`) exigem
 `gcc`, `make` e `python3`.
 
-| Sintoma | O que fazer |
-|---|---|
-| Erro de tipo | `yarn typecheck`; confira as conditional exports do `loot-core` |
-| Erro de lint | `yarn lint:fix`; regras próprias em `packages/eslint-plugin-actual` |
-| Teste falhando sem motivo | `yarn test:debug`, ou `rm -rf .lage` |
-| Import não resolve | Confira os `exports` do `package.json` do pacote e o alias |
-| Build quebrado | Apague `dist/`, `lib-dist/`, `build/` e reconstrua |
+| Sintoma                   | O que fazer                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| Erro de tipo              | `yarn typecheck`; confira as conditional exports do `loot-core`     |
+| Erro de lint              | `yarn lint:fix`; regras próprias em `packages/eslint-plugin-actual` |
+| Teste falhando sem motivo | `yarn test:debug`, ou `rm -rf .lage`                                |
+| Import não resolve        | Confira os `exports` do `package.json` do pacote e o alias          |
+| Build quebrado            | Apague `dist/`, `lib-dist/`, `build/` e reconstrua                  |
 
 Na tela inicial, "View demo" cria um orçamento de exemplo para testar sem dados reais.
 
@@ -240,12 +241,12 @@ Na tela inicial, "View demo" cria um orçamento de exemplo para testar sem dados
 
 ## 10. Restrições de produção
 
-| Restrição | Consequência prática |
-|---|---|
-| `e2-micro`, 384MB para o container | Sem dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM. |
-| SQLite local, sem banco externo | Migrações em `packages/loot-core/migrations/`. |
-| IA plugável | Nenhum provider hardcoded; chamadas em lote; custo observável. |
-| Determinístico antes de IA | Regras nativas e cache primeiro; IA só no resíduo; saída de IA é sugestão revisável. |
-| Privacidade | Descrição, valor, data e categoria podem ir para IA externa. Conta, cartão, CPF, credencial e senha, nunca. Log sem PII. Chave de API só no servidor. |
+| Restrição                          | Consequência prática                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2-micro`, 384MB para o container | Sem dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                |
+| SQLite local, sem banco externo    | Migrações em `packages/loot-core/migrations/`.                                                                                                        |
+| IA plugável                        | Nenhum provider hardcoded; chamadas em lote; custo observável.                                                                                        |
+| Determinístico antes de IA         | Regras nativas e cache primeiro; IA só no resíduo; saída de IA é sugestão revisável.                                                                  |
+| Privacidade                        | Descrição, valor, data e categoria podem ir para IA externa. Conta, cartão, CPF, credencial e senha, nunca. Log sem PII. Chave de API só no servidor. |
 
 Detalhes e a redação normativa: `.specify/memory/constitution.md`.

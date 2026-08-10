@@ -15,7 +15,7 @@
 - Toda tarefa DEVE citar o caminho do arquivo que ela toca.
 
 Correto: `- [ ] T012 [P] [US1] Criar normalizador de descrição em packages/loot-core/src/custom/classify/normalize.ts`
-Errado: `- [ ] T001 [US1] Criar normalizador` *(sem caminho de arquivo)*
+Errado: `- [ ] T001 [US1] Criar normalizador` _(sem caminho de arquivo)_
 
 > **Testes**: neste repositório, o princípio VII da constituição torna teste
 > obrigatório para toda lógica custom. Gere as tarefas de teste antes das de
@@ -60,7 +60,7 @@ Errado: `- [ ] T001 [US1] Criar normalizador` *(sem caminho de arquivo)*
 
 ## Fase 4 — História 2: [Título] (P2)
 
-*(mesma estrutura)*
+_(mesma estrutura)_
 
 **Checkpoint**: Histórias 1 e 2 funcionais.
 
@@ -68,7 +68,7 @@ Errado: `- [ ] T001 [US1] Criar normalizador` *(sem caminho de arquivo)*
 
 ## Fase 5 — História 3: [Título] (P3)
 
-*(mesma estrutura)*
+_(mesma estrutura)_
 
 ---
 
@@ -83,15 +83,19 @@ Errado: `- [ ] T001 [US1] Criar normalizador` *(sem caminho de arquivo)*
 ## Dependências e Ordem de Execução
 
 ### Entre fases
+
 Setup → Fundação → Histórias (P1 → P2 → P3) → Polimento
 
 ### Entre histórias
+
 [quais histórias dependem de quais; idealmente nenhuma]
 
 ### Dentro de cada história
+
 Testes → modelos/dados → serviços → endpoints/UI → integração
 
 ### Oportunidades de paralelismo
+
 [quais tarefas `[P]` podem rodar juntas]
 
 ---

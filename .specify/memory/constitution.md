@@ -19,14 +19,14 @@ tarefas — nunca se dilui, reinterpreta ou ignora silenciosamente um princípio
 
 ## Identidade
 
-| Chave | Valor |
-|---|---|
-| **O que é** | Sistema de finanças pessoais do Pedro e da Julia (casal) |
-| **Base** | Fork de [actualbudget/actual](https://github.com/actualbudget/actual), a partir da v26.3.0 |
-| **Licença** | MIT (herdada do upstream) |
-| **Moeda / locale** | BRL, pt-BR |
-| **Stack** | Monorepo TypeScript (Yarn 4 workspaces), React 19, Express, SQLite |
-| **Hospedagem** | GCP Compute Engine `e2-micro` (free tier), projeto `actual-financas`, SQLite local, Caddy com TLS automático |
+| Chave              | Valor                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| **O que é**        | Sistema de finanças pessoais do Pedro e da Julia (casal)                                                     |
+| **Base**           | Fork de [actualbudget/actual](https://github.com/actualbudget/actual), a partir da v26.3.0                   |
+| **Licença**        | MIT (herdada do upstream)                                                                                    |
+| **Moeda / locale** | BRL, pt-BR                                                                                                   |
+| **Stack**          | Monorepo TypeScript (Yarn 4 workspaces), React 19, Express, SQLite                                           |
+| **Hospedagem**     | GCP Compute Engine `e2-micro` (free tier), projeto `actual-financas`, SQLite local, Caddy com TLS automático |
 
 **O problema que este sistema existe para resolver**: as receitas do casal foram
 cadastradas, mas as despesas nunca. O gargalo é o **atrito de registro**, não a
@@ -80,6 +80,7 @@ upstream com regularidade. **Quebrar o merge de upstream é falha crítica.**
   ```
 
   E DEVE ser listada na seção "Verificação da Constituição" do plano.
+
 - NÃO DEVE deletar, renomear ou reestruturar arquivos do upstream.
 - Em `package.json`, apenas **adicionar** dependências. Nunca remover nem alterar
   as existentes.

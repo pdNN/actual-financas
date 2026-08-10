@@ -78,11 +78,11 @@ sistema, e ninguém precisou lembrar de digitar transação manualmente todo dia
 **Abordagens em avaliação** — a escolha entre elas é decisão do `/speckit.plan`
 da feature correspondente, não desta spec:
 
-| Abordagem | A favor | Contra |
-|---|---|---|
-| **Import de fatura/extrato** (OFX/CSV/PDF) | Já parcialmente implementado; sem dependência externa paga; funciona para cartão de crédito, que é onde está o volume | Exige um ritual mensal; PDF de fatura exige OCR, que não cabe na VM |
-| **Lançamento rápido no celular** | Menor atrito diário; captura despesa em dinheiro e Pix, que não aparecem em fatura | Depende de hábito; precisa de UI muito boa no mobile |
-| **Sync automático** (Pluggy / Open Finance) | Atrito zero de verdade; já existe `app-pluggyai` no upstream | Custo mensal do Pluggy; exige credenciais bancárias; mais superfície de risco |
+| Abordagem                                   | A favor                                                                                                               | Contra                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Import de fatura/extrato** (OFX/CSV/PDF)  | Já parcialmente implementado; sem dependência externa paga; funciona para cartão de crédito, que é onde está o volume | Exige um ritual mensal; PDF de fatura exige OCR, que não cabe na VM           |
+| **Lançamento rápido no celular**            | Menor atrito diário; captura despesa em dinheiro e Pix, que não aparecem em fatura                                    | Depende de hábito; precisa de UI muito boa no mobile                          |
+| **Sync automático** (Pluggy / Open Finance) | Atrito zero de verdade; já existe `app-pluggyai` no upstream                                                          | Custo mensal do Pluggy; exige credenciais bancárias; mais superfície de risco |
 
 As três não são mutuamente exclusivas. A leitura atual é que import + lançamento
 rápido cobrem o caso real sem custo recorrente, e o sync automático é a evolução
@@ -197,7 +197,7 @@ Mapeadas ao schema real — `packages/loot-core/src/server/sql/init.sql` e
 - **Regra** (`rules`): condições e ações que categorizam automaticamente. É o
   destino final de todo aprendizado — o que a IA descobre deve virar regra.
 - **Conta** (`accounts`): corrente, poupança, cartão de crédito, investimento.
-- **Sugestão de classificação** *(nova, ainda não existe)*: transação, categoria
+- **Sugestão de classificação** _(nova, ainda não existe)_: transação, categoria
   proposta, confiança, origem (regra, cache ou IA), estado de revisão.
 
 ---
@@ -262,20 +262,20 @@ princípio correspondente.
 Registro de intenção, sem compromisso de ordem. Cada uma vira uma spec própria
 via `/speckit.specify` quando for a vez.
 
-| # | Feature | Por que importa | Depende de |
-|---|---|---|---|
-| **001** | **Servidor MCP local do actual-financas** — expõe ao Claude Code ferramentas sobre o orçamento: listar transações sem categoria, propor e aplicar categorias em lote, criar regras nativas, gerar relatório mensal. Roda na máquina do Pedro, fora da VM, usando a assinatura Claude já paga. | Resolve custo de IA (tende a zero), tira carga da `e2-micro` e permite processamento pesado sem infraestrutura nova. Rota preferida pelo princípio IV. | — |
-| **002** | Camada determinística de classificação — normalização de descrição, cache e geração de regras nativas a partir de acertos confirmados. | É o que faz a proporção de chamadas à IA cair com o tempo (CS-003). Princípio III. | — |
-| **003** | Refatorar `packages/sync-server/src/app-ai/app-ai.ts` para provider plugável, com few-shot do histórico e testes. | Hoje o provider é Gemini hardcoded, sem teste e sem contexto do histórico do casal. Princípios IV e VII. | 002 |
-| **004** | Lançamento rápido de despesa no celular. | Ataca diretamente o CS-001 e a parte da História 1 que import não cobre (dinheiro e Pix). | — |
-| **005** | Import de fatura e extrato melhorado — OFX/CSV robustos, e avaliação de PDF com OCR fora da VM. | O cartão concentra o volume de despesa. | — |
-| **006** | Detecção de transferências entre contas, parcelamentos e aportes de investimento. | RF-008, RF-009, CS-006. Sem isso o relatório mente. | 001 ou 003 |
-| **007** | Resumo mensal e insights. | RF-010, CS-005. O valor final para a Julia. | 002, 006 |
+| #       | Feature                                                                                                                                                                                                                                                                                       | Por que importa                                                                                                                                        | Depende de |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| **001** | **Servidor MCP local do actual-financas** — expõe ao Claude Code ferramentas sobre o orçamento: listar transações sem categoria, propor e aplicar categorias em lote, criar regras nativas, gerar relatório mensal. Roda na máquina do Pedro, fora da VM, usando a assinatura Claude já paga. | Resolve custo de IA (tende a zero), tira carga da `e2-micro` e permite processamento pesado sem infraestrutura nova. Rota preferida pelo princípio IV. | —          |
+| **002** | Camada determinística de classificação — normalização de descrição, cache e geração de regras nativas a partir de acertos confirmados.                                                                                                                                                        | É o que faz a proporção de chamadas à IA cair com o tempo (CS-003). Princípio III.                                                                     | —          |
+| **003** | Refatorar `packages/sync-server/src/app-ai/app-ai.ts` para provider plugável, com few-shot do histórico e testes.                                                                                                                                                                             | Hoje o provider é Gemini hardcoded, sem teste e sem contexto do histórico do casal. Princípios IV e VII.                                               | 002        |
+| **004** | Lançamento rápido de despesa no celular.                                                                                                                                                                                                                                                      | Ataca diretamente o CS-001 e a parte da História 1 que import não cobre (dinheiro e Pix).                                                              | —          |
+| **005** | Import de fatura e extrato melhorado — OFX/CSV robustos, e avaliação de PDF com OCR fora da VM.                                                                                                                                                                                               | O cartão concentra o volume de despesa.                                                                                                                | —          |
+| **006** | Detecção de transferências entre contas, parcelamentos e aportes de investimento.                                                                                                                                                                                                             | RF-008, RF-009, CS-006. Sem isso o relatório mente.                                                                                                    | 001 ou 003 |
+| **007** | Resumo mensal e insights.                                                                                                                                                                                                                                                                     | RF-010, CS-005. O valor final para a Julia.                                                                                                            | 002, 006   |
 
 ---
 
 ## Histórico
 
-| Data | Mudança |
-|---|---|
+| Data       | Mudança                                                                                                                                                               |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-08-09 | Criação. Consolida o conteúdo de `.cursor/rules/instructions.mdc`, `.github/copilot-instructions.md` e `.windsurf/rules/instructions.md`, removidos na mesma mudança. |

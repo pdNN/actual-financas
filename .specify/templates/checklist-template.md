@@ -10,7 +10,7 @@
 > Ele valida se os **requisitos estão bem escritos**.
 >
 > ❌ Errado: "Verificar se o botão clica corretamente"
-> ✅ Certo: "'Exibição destacada' está quantificada com tamanho/posição específicos?" *(clareza)*
+> ✅ Certo: "'Exibição destacada' está quantificada com tamanho/posição específicos?" _(clareza)_
 >
 > Metáfora: se a spec é código escrito em português, o checklist é a suíte de testes dela.
 

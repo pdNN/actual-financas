@@ -1,7 +1,7 @@
 ---
 name: speckit-analyze
 description: Relatório somente-leitura de consistência e cobertura entre spec, plano, tarefas e constituição da feature ativa. Portão de qualidade opcional do fluxo SDD do actual-financas. Use antes de implementar ou ao invocar /speckit.analyze.
-argument-hint: "(opcional) foco da análise"
+argument-hint: '(opcional) foco da análise'
 user-invocable: true
 ---
 
@@ -37,17 +37,20 @@ nunca diluição, reinterpretação ou omissão do princípio.
 ### 3. Verifique
 
 **Cobertura:**
+
 - Todo requisito funcional (`RF-###`) tem ao menos uma tarefa que o realiza?
 - Toda história tem tarefas suficientes para ser entregue sozinha?
 - Todo critério de sucesso (`CS-###`) é verificável pelo que foi planejado?
 - Toda tarefa rastreia até algum requisito? (tarefa órfã = escopo inflado)
 
 **Consistência:**
+
 - O plano contradiz a spec em algum ponto?
 - As tarefas implementam algo que a spec não pediu?
 - Os nomes de entidade batem entre `spec.md`, `data-model.md` e as tarefas?
 
 **Qualidade:**
+
 - Sobrou `[NECESSITA ESCLARECIMENTO]`?
 - Há requisito não-testável?
 - Há critério de sucesso sem número?
@@ -58,12 +61,12 @@ nunca diluição, reinterpretação ou omissão do princípio.
 
 ### 4. Classifique cada achado
 
-| Severidade | Critério |
-|---|---|
+| Severidade  | Critério                                                                           |
+| ----------- | ---------------------------------------------------------------------------------- |
 | **CRÍTICO** | Viola um DEVE/NÃO DEVE da constituição, ou requisito central sem nenhuma cobertura |
-| **ALTO** | Contradição direta entre artefatos, ou história que não fecha sozinha |
-| **MÉDIO** | Ambiguidade que provavelmente gera retrabalho |
-| **BAIXO** | Inconsistência de nomenclatura ou de estilo |
+| **ALTO**    | Contradição direta entre artefatos, ou história que não fecha sozinha              |
+| **MÉDIO**   | Ambiguidade que provavelmente gera retrabalho                                      |
+| **BAIXO**   | Inconsistência de nomenclatura ou de estilo                                        |
 
 ### 5. Relate
 

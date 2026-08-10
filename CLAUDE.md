@@ -132,29 +132,29 @@ verde antes de qualquer commit.
 
 ## Restrições que doem na prática
 
-| Restrição | Consequência |
-|---|---|
-| VM `e2-micro`, 384MB para o container | Nada de dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM. |
-| SQLite local | Sem banco externo. |
-| pt-BR / BRL | Toda string de usuário via `Trans`; números com `FinancialText` ou `styles.tnum`. |
-| Privacidade | Descrição, valor, data e categoria **podem** ir para provider de IA. Conta, cartão, CPF, credencial e senha **nunca**. Log sem PII. Chave de API só no servidor. |
-| Qualidade | Sem novos `@ts-strict-ignore`, `eslint-disable`, `any`, `unknown` sem justificativa no plano. |
+| Restrição                             | Consequência                                                                                                                                                     |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VM `e2-micro`, 384MB para o container | Nada de dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                       |
+| SQLite local                          | Sem banco externo.                                                                                                                                               |
+| pt-BR / BRL                           | Toda string de usuário via `Trans`; números com `FinancialText` ou `styles.tnum`.                                                                                |
+| Privacidade                           | Descrição, valor, data e categoria **podem** ir para provider de IA. Conta, cartão, CPF, credencial e senha **nunca**. Log sem PII. Chave de API só no servidor. |
+| Qualidade                             | Sem novos `@ts-strict-ignore`, `eslint-disable`, `any`, `unknown` sem justificativa no plano.                                                                    |
 
 ---
 
 ## Onde olhar
 
-| Arquivo | O que é |
-|---|---|
-| `.specify/memory/constitution.md` | **As regras. Autoridade máxima.** |
-| `specs/000-produto/spec.md` | Visão de produto, histórias e backlog |
-| `specs/NNN-slug/` | Especificações de feature |
-| `AGENTS.md` | Guia técnico do repositório (arquitetura, padrões, testes) |
-| `CODE_REVIEW_GUIDELINES.md` | Padrões de revisão |
-| `infra/README.md` | Runbook de deploy no GCP |
-| `packages/sync-server/src/app-ai/app-ai.ts` | Classificador de transações atual (Gemini) |
-| `packages/loot-core/src/server/rules/` | Motor de regras nativo do Actual |
-| `packages/loot-core/src/server/sql/init.sql` | Schema base do banco |
+| Arquivo                                      | O que é                                                    |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| `.specify/memory/constitution.md`            | **As regras. Autoridade máxima.**                          |
+| `specs/000-produto/spec.md`                  | Visão de produto, histórias e backlog                      |
+| `specs/NNN-slug/`                            | Especificações de feature                                  |
+| `AGENTS.md`                                  | Guia técnico do repositório (arquitetura, padrões, testes) |
+| `CODE_REVIEW_GUIDELINES.md`                  | Padrões de revisão                                         |
+| `infra/README.md`                            | Runbook de deploy no GCP                                   |
+| `packages/sync-server/src/app-ai/app-ai.ts`  | Classificador de transações atual (Gemini)                 |
+| `packages/loot-core/src/server/rules/`       | Motor de regras nativo do Actual                           |
+| `packages/loot-core/src/server/sql/init.sql` | Schema base do banco                                       |
 
 <!-- SPECKIT START -->
 <!-- SPECKIT END -->

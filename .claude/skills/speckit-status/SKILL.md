@@ -1,7 +1,7 @@
 ---
 name: speckit-status
 description: Mostra o estado do fluxo SDD — qual feature está ativa, quais artefatos existem, o que falta e qual é o próximo comando. Use ao invocar /speckit.status, ao retomar um trabalho, ou quando não souber em que ponto do fluxo você está.
-argument-hint: ""
+argument-hint: ''
 user-invocable: true
 ---
 
@@ -27,14 +27,14 @@ andamento. Liste o que existe em `specs/` e sugira `/speckit.specify`.
 
 Verifique quais destes existem no `FEATURE_DIR`:
 
-| Arquivo | Produzido por | Significa |
-|---|---|---|
-| `spec.md` | `/speckit.specify` | a demanda está escrita |
-| `checklists/requirements.md` | `/speckit.specify` | a spec tem checklist de qualidade |
-| `research.md` | `/speckit.plan` (Fase 0) | decisões técnicas registradas |
-| `data-model.md`, `contracts/`, `quickstart.md` | `/speckit.plan` (Fase 1) | design pronto |
-| `plan.md` | `/speckit.plan` | abordagem técnica definida |
-| `tasks.md` | `/speckit.tasks` | trabalho quebrado em tarefas |
+| Arquivo                                        | Produzido por            | Significa                         |
+| ---------------------------------------------- | ------------------------ | --------------------------------- |
+| `spec.md`                                      | `/speckit.specify`       | a demanda está escrita            |
+| `checklists/requirements.md`                   | `/speckit.specify`       | a spec tem checklist de qualidade |
+| `research.md`                                  | `/speckit.plan` (Fase 0) | decisões técnicas registradas     |
+| `data-model.md`, `contracts/`, `quickstart.md` | `/speckit.plan` (Fase 1) | design pronto                     |
+| `plan.md`                                      | `/speckit.plan`          | abordagem técnica definida        |
+| `tasks.md`                                     | `/speckit.tasks`         | trabalho quebrado em tarefas      |
 
 Em `tasks.md`, conte tarefas totais, feitas (`- [x]`) e pendentes, por fase.
 

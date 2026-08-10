@@ -1,7 +1,7 @@
 ---
 name: speckit-checklist
 description: Gera um checklist de qualidade por domínio (UX, API, segurança, dados) para a especificação ativa — "testes unitários para o português". Portão opcional do fluxo SDD do actual-financas. Use ao invocar /speckit.checklist.
-argument-hint: "Domínio do checklist, ex.: ux, api, seguranca, dados"
+argument-hint: 'Domínio do checklist, ex.: ux, api, seguranca, dados'
 user-invocable: true
 ---
 
@@ -17,9 +17,9 @@ Um checklist NÃO valida se o software funciona. Isso é papel dos testes.
 Ele valida se os **requisitos estão bem escritos**.
 
 - ❌ Errado: "Verificar se o botão de importar funciona"
-- ✅ Certo: "'Importação rápida' está quantificada com um tempo máximo?" *(clareza)*
+- ✅ Certo: "'Importação rápida' está quantificada com um tempo máximo?" _(clareza)_
 - ❌ Errado: "Testar a classificação com 100 transações"
-- ✅ Certo: "O limiar de confiança para gravar categoria automaticamente está definido?" *(lacuna)*
+- ✅ Certo: "O limiar de confiança para gravar categoria automaticamente está definido?" _(lacuna)_
 
 Metáfora: se a spec é código escrito em português, o checklist é a suíte de
 testes dela.
