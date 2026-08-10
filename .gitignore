@@ -78,11 +78,14 @@ build/
 .lage/
 
 # Infrastructure secrets & Terraform state
+# NOTE: .terraform.lock.hcl is deliberately NOT ignored — it pins provider
+# versions so CI and local runs resolve identically. Commit it.
 infra/credentials.json
-infra/.terraform/
-infra/*.tfstate
-infra/*.tfstate.backup
-infra/.terraform.lock.hcl
+infra/**/.terraform/
+infra/**/*.tfstate
+infra/**/*.tfstate.backup
+infra/**/tfplan
+infra/**/*.auto.tfvars
 infra/.env
 
 *storybook.log

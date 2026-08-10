@@ -1,0 +1,7 @@
+{
+  "integration": "claude",
+  "feature_numbering": "sequential",
+  "script": "sh",
+  "language": "pt-BR",
+  "git_branch": true
+}
