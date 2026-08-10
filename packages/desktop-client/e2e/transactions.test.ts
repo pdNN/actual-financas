@@ -257,6 +257,11 @@ test.describe('Transactions', () => {
 
     const balanceBeforeTransaction =
       await accountPage.accountBalance.textContent();
+    const allAccountsBefore =
+      await accountPage.sidebarAllAccountsBalance.textContent();
+    const onBudgetBefore =
+      await accountPage.sidebarOnBudgetBalance.textContent();
+
     await accountPage.addEnteredTransaction();
 
     transaction = accountPage.getNthTransaction(0);
@@ -273,6 +278,77 @@ test.describe('Transactions', () => {
       expect(balanceAfterTransaction).not.toBe(balanceBeforeTransaction);
     }).toPass();
 
+    // For an on-budget transfer, net totals should be unchanged
+    await expect(async () => {
+      const allAccounts =
+        await accountPage.sidebarAllAccountsBalance.textContent();
+      const onBudget = await accountPage.sidebarOnBudgetBalance.textContent();
+      expect(allAccounts).toBe(allAccountsBefore);
+      expect(onBudget).toBe(onBudgetBefore);
+    }).toPass();
+
     await expect(page).toMatchThemeScreenshots();
+  });
+
+  test.describe('column manager', () => {
+    test('hides and reorders columns', async () => {
+      const header = page.getByTestId('transaction-table-header');
+      await expect(header).toContainText('Notes');
+
+      const modal = await accountPage.openTransactionColumnsModal();
+      await expect(modal).toBeVisible();
+      await expect(modal).toMatchThemeScreenshots();
+
+      // Hide the notes column
+      await modal.locator('label[for="toggle-column-notes"]').click();
+
+      // Reorder the category column with the keyboard-accessible drag handle.
+      // Two steps up moves it above the (hidden) notes row and then above
+      // payee, so the saved order visibly changes in the table header.
+      const dragHandle = modal.getByRole('button', {
+        name: 'Reorder Category column',
+      });
+      await dragHandle.focus();
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('ArrowUp');
+      await page.keyboard.press('ArrowUp');
+      await page.keyboard.press('Enter');
+
+      await modal.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      // The saved layout has notes hidden and category moved before payee
+      await expect(header).toHaveText('DateCategoryPayeePaymentDeposit✓');
+      await expect(page).toMatchThemeScreenshots();
+
+      // Reopen: the saved configuration should be reflected in the modal
+      await accountPage.openTransactionColumnsModal();
+      await expect(modal.locator('#toggle-column-notes')).not.toBeChecked();
+
+      // Reset to default restores the original layout
+      await modal
+        .getByRole('button', { name: 'Reset to default', exact: true })
+        .click();
+      await modal.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      await expect(header).toHaveText('DatePayeeNotesCategoryPaymentDeposit✓');
+    });
+
+    test('applies columns to all transaction tables when enabled', async () => {
+      const header = page.getByTestId('transaction-table-header');
+
+      // Hide the notes column for every transaction table
+      const modal = await accountPage.openTransactionColumnsModal();
+      await modal.locator('label[for="toggle-column-notes"]').click();
+      await modal.getByText('Apply to all transaction tables').click();
+      await modal.getByRole('button', { name: 'Save', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+      await expect(header).not.toContainText('Notes');
+
+      // Another account follows the shared layout
+      accountPage = await navigation.goToAccountPage('Bank of America');
+      await expect(header).not.toContainText('Notes');
+    });
   });
 });

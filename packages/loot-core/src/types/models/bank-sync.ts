@@ -20,4 +20,18 @@ export type BankSyncResponse = {
   error_code: string;
 };
 
-export type BankSyncProviders = 'goCardless' | 'simpleFin' | 'pluggyai';
+export const SYNC_PROVIDERS = [
+  'goCardless',
+  'simpleFin',
+  'pluggyai',
+  'enableBanking',
+  'akahu',
+] as const;
+
+export type BankSyncProviders = (typeof SYNC_PROVIDERS)[number];
+export type BankSyncCredentialSource = 'per-budget-file' | 'global';
+export type BankSyncProviderStatus = {
+  configured?: boolean;
+  source?: BankSyncCredentialSource;
+  error?: string;
+};

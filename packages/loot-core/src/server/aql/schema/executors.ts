@@ -1,16 +1,20 @@
 // @ts-strict-ignore
 
+import { appendWhere, isAggregateQuery } from '#server/aql/compiler';
+import type {
+  CompilerState,
+  OutputTypes,
+  SqlPieces,
+} from '#server/aql/compiler';
+import { execQuery } from '#server/aql/exec';
+import type { AqlQueryExecutor } from '#server/aql/exec';
+import { convertOutputType } from '#server/aql/schema-helpers';
+import * as db from '#server/db';
+import { whereIn } from '#server/db/util';
+import { q } from '#shared/query';
+import type { QueryState } from '#shared/query';
+import type { CategoryEntity } from '#types/models';
 import { aqlQuery } from '..';
-import { q } from '../../../shared/query';
-import type { QueryState } from '../../../shared/query';
-import type { CategoryEntity } from '../../../types/models';
-import * as db from '../../db';
-import { whereIn } from '../../db/util';
-import { isAggregateQuery } from '../compiler';
-import type { CompilerState, OutputTypes, SqlPieces } from '../compiler';
-import { execQuery } from '../exec';
-import type { AqlQueryExecutor } from '../exec';
-import { convertOutputType } from '../schema-helpers';
 
 // Transactions executor
 
@@ -109,7 +113,7 @@ async function execTransactionsGrouped(
     const s = { ...sqlPieces };
 
     // Modify the where to only include non-parents
-    s.where = `${s.where} AND ${s.from}.is_parent = 0`;
+    s.where = appendWhere(s.where, `${s.from}.is_parent = 0`);
 
     // We also want to exclude deleted transactions. Normally we
     // handle this manually down below, but now that we are doing a
@@ -134,7 +138,7 @@ async function execTransactionsGrouped(
       SELECT ${sqlPieces.from}.id as group_id
       FROM ${sqlPieces.from}
       ${sqlPieces.joins}
-      ${sqlPieces.where} AND is_child = 0 ${whereDead}
+      ${appendWhere(sqlPieces.where, `is_child = 0 ${whereDead}`)}
       ${sqlPieces.orderBy}
       ${sqlPieces.limit != null ? `LIMIT ${sqlPieces.limit}` : ''}
       ${sqlPieces.offset != null ? `OFFSET ${sqlPieces.offset}` : ''}
@@ -152,7 +156,7 @@ async function execTransactionsGrouped(
             FROM ${sqlPieces.from}
             LEFT JOIN transactions _t2 ON ${sqlPieces.from}.is_child = 1 AND _t2.id = ${sqlPieces.from}.parent_id
             ${sqlPieces.joins}
-            ${sqlPieces.where} AND ${sqlPieces.from}.tombstone = 0 AND IFNULL(_t2.tombstone, 0) = 0
+            ${appendWhere(sqlPieces.where, `${sqlPieces.from}.tombstone = 0 AND IFNULL(_t2.tombstone, 0) = 0`)}
           )
         GROUP BY group_id
       )
@@ -233,9 +237,9 @@ async function execTransactionsBasic(
 
   if (splitType !== 'all') {
     if (splitType === 'none') {
-      s.where = `${s.where} AND ${s.from}.parent_id IS NULL`;
+      s.where = appendWhere(s.where, `${s.from}.parent_id IS NULL`);
     } else {
-      s.where = `${s.where} AND ${s.from}.is_parent = 0`;
+      s.where = appendWhere(s.where, `${s.from}.is_parent = 0`);
     }
   }
 

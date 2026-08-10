@@ -2,12 +2,12 @@ import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { q } from 'loot-core/shared/query';
+import { q } from '@actual-app/core/shared/query';
 import type {
   AccountEntity,
   PayeeEntity,
   TransactionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
 
 import { useAccounts } from './useAccounts';
 import { usePayeesById } from './usePayees';
@@ -38,10 +38,22 @@ export function DisplayPayeeProvider({
         .select('*'),
     [transactions],
   );
-  const { transactions: allSubtransactions = [] } = useTransactions({
+  const { transactions: queriedSubtransactions = [] } = useTransactions({
     query: subtransactionsQuery,
     options: { pageSize: transactions.length * 5 },
   });
+
+  // Preview and other not-yet-saved split transactions have subtransactions
+  // that only exist in-memory (never persisted), so the query above can't
+  // find them. Merge those in from the transactions we were already given.
+  const allSubtransactions = useMemo(() => {
+    const localChildren = transactions.filter(t => t.is_child);
+    const localIds = new Set(localChildren.map(t => t.id));
+    return [
+      ...queriedSubtransactions.filter(st => !localIds.has(st.id)),
+      ...localChildren,
+    ];
+  }, [queriedSubtransactions, transactions]);
 
   const { data: accounts = [] } = useAccounts();
   const { data: payeesById = {} } = usePayeesById();

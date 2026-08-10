@@ -19,39 +19,35 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { CalendarWidget } from '@actual-app/core/types/models';
+import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 import { format as formatDate } from 'date-fns';
-import debounce from 'lodash/debounce';
+import { debounce } from 'es-toolkit/compat';
 
-import { send } from 'loot-core/platform/client/connection';
-import * as monthUtils from 'loot-core/shared/months';
-import type { CalendarWidget } from 'loot-core/types/models';
-import type { SyncedPrefs } from 'loot-core/types/prefs';
-
-import { FinancialText } from '@desktop-client/components/FinancialText';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { DateRange } from '@desktop-client/components/reports/DateRange';
-import { CalendarGraph } from '@desktop-client/components/reports/graphs/CalendarGraph';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { ReportCard } from '@desktop-client/components/reports/ReportCard';
-import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { calendarSpreadsheet } from '@desktop-client/components/reports/spreadsheets/calendar-spreadsheet';
-import type { CalendarDataType } from '@desktop-client/components/reports/spreadsheets/calendar-spreadsheet';
-import { useDashboardWidgetCopyMenu } from '@desktop-client/components/reports/useDashboardWidgetCopyMenu';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import type { FormatType } from '@desktop-client/hooks/useFormat';
-import { useMergedRefs } from '@desktop-client/hooks/useMergedRefs';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
+import { FinancialText } from '#components/FinancialText';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { CalendarCardSkeleton } from '#components/reports/CalendarCardSkeleton';
+import { DateRange } from '#components/reports/DateRange';
+import { CalendarGraph } from '#components/reports/graphs/CalendarGraph';
+import { ReportCard } from '#components/reports/ReportCard';
+import { ReportCardName } from '#components/reports/ReportCardName';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { calendarSpreadsheet } from '#components/reports/spreadsheets/calendar-spreadsheet';
+import type { CalendarDataType } from '#components/reports/spreadsheets/calendar-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { useFormat } from '#hooks/useFormat';
+import type { FormatType } from '#hooks/useFormat';
+import { useMergedRefs } from '#hooks/useMergedRefs';
+import { useNavigate } from '#hooks/useNavigate';
+import { useResizeObserver } from '#hooks/useResizeObserver';
 
 type CalendarCardProps = {
   widgetId: string;
   isEditing?: boolean;
   meta?: CalendarWidget['meta'];
   onMetaChange: (newMeta: CalendarWidget['meta']) => void;
-  onRemove: () => void;
-  onCopy: (targetDashboardId: string) => void;
   firstDayOfWeekIdx?: SyncedPrefs['firstDayOfWeekIdx'];
 };
 
@@ -60,8 +56,6 @@ export function CalendarCard({
   isEditing,
   meta = {},
   onMetaChange,
-  onRemove,
-  onCopy,
   firstDayOfWeekIdx,
 }: CalendarCardProps) {
   const { t } = useTranslation();
@@ -168,38 +162,13 @@ export function CalendarCard({
     return data?.calendarData.length;
   }, [data]);
 
-  const { menuItems: copyMenuItems, handleMenuSelect: handleCopyMenuSelect } =
-    useDashboardWidgetCopyMenu(onCopy);
-
   return (
     <ReportCard
+      widgetId={widgetId}
       isEditing={isEditing}
       disableClick={nameMenuOpen}
       to={`/reports/calendar/${widgetId}`}
-      menuItems={[
-        {
-          name: 'rename',
-          text: t('Rename'),
-        },
-        {
-          name: 'remove',
-          text: t('Remove'),
-        },
-        ...copyMenuItems,
-      ]}
-      onMenuSelect={item => {
-        if (handleCopyMenuSelect(item)) return;
-        switch (item) {
-          case 'rename':
-            setNameMenuOpen(true);
-            break;
-          case 'remove':
-            onRemove();
-            break;
-          default:
-            throw new Error(`Unrecognized selection: ${item}`);
-        }
-      }}
+      onRename={() => setNameMenuOpen(true)}
     >
       <View
         ref={el => (el ? cardRef(el) : undefined)}
@@ -340,7 +309,7 @@ export function CalendarCard({
                 />
               ))
             ) : (
-              <LoadingIndicator />
+              <CalendarCardSkeleton />
             )}
           </View>
         </View>

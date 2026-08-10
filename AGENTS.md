@@ -69,7 +69,7 @@ git fetch upstream && git merge upstream/master
 Sempre da **raiz** do repositório.
 
 ```bash
-yarn typecheck          # tsc --noEmit + lage typecheck — obrigatório antes de commitar
+yarn typecheck          # tsgo + lage typecheck — obrigatório antes de commitar
 yarn lint               # oxfmt --check + oxlint --type-aware
 yarn lint:fix           # auto-corrige
 yarn test               # todos os pacotes, via lage
@@ -82,7 +82,7 @@ yarn vrt                # testes de regressão visual
 yarn build:server       # build do sync-server
 ```
 
-Por pacote: `yarn workspace loot-core run test`,
+Por pacote: `yarn workspace @actual-app/core run test`,
 `yarn workspace @actual-app/web e2e`, etc.
 
 **Portão de qualidade** — verde antes de qualquer commit:
@@ -97,7 +97,7 @@ yarn typecheck && yarn lint && yarn test
 
 | Pacote                           | Alias                     | Papel                                                                       |
 | -------------------------------- | ------------------------- | --------------------------------------------------------------------------- |
-| `packages/loot-core/`            | `loot-core`               | Lógica de negócio, banco, orçamento, regras, sync. Agnóstico de plataforma. |
+| `packages/loot-core/`            | `@actual-app/core`        | Lógica de negócio, banco, orçamento, regras, sync. Agnóstico de plataforma. |
 | `packages/desktop-client/`       | `@actual-app/web`         | UI React 19 + Vite. PWA, responsivo, temas.                                 |
 | `packages/desktop-electron/`     | —                         | Invólucro Electron.                                                         |
 | `packages/sync-server/`          | `@actual-app/sync-server` | Servidor Express de sync + serve os estáticos.                              |
@@ -148,6 +148,10 @@ infra/                                                # Terraform, Caddy, deploy
 - `useNavigate()` de `src/hooks` (não de react-router).
 - `useDispatch()`, `useSelector()`, `useStore()` de `src/redux` (não de react-redux).
 - Sem componentes aninhados instáveis.
+- **React Compiler está ligado** (`babel-plugin-react-compiler`) em todos os pacotes
+  com React. Ele memoiza o corpo do componente automaticamente, então **não**
+  adicione `useCallback`, `useMemo` ou `React.memo` por reflexo — prefira callback
+  e valor inline, salvo quando alguma dependência não-compilada exigir identidade estável.
 
 ```tsx
 type MyComponentProps = {
@@ -217,15 +221,22 @@ testes se comportarem de forma estranha, `rm -rf .lage`.
   `--no-verify`, `--no-gpg-sign`, push forçado em `master`.
 - Não commitar sem o usuário pedir.
 
+Regras completas de commit e PR do upstream: `.github/agents/pr-and-commit-rules.md`.
+
 Hook de pre-commit: Husky + lint-staged (oxfmt + oxlint). Rode `yarn prepare`
 após instalar dependências.
+
+O upstream também instala **hooks de agente** em `.claude/settings.json`, que
+rodam scripts de `scripts/agent-hooks/`: formatam o arquivo editado, barram
+`@ts-strict-ignore` em arquivo novo e protegem operações de git. Eles são do
+upstream — não desative sem motivo registrado.
 
 ---
 
 ## 9. Ambiente e problemas comuns
 
-Node >= 22, Yarn ^4.9.1. Módulos nativos (`better-sqlite3`, `bcrypt`) exigem
-`gcc`, `make` e `python3`.
+Node 24 (ver `.nvmrc`; `engines` aceita >= 22.18), Yarn ^4.9.1. Módulos nativos
+(`better-sqlite3`, `bcrypt`) exigem `gcc`, `make` e `python3`.
 
 | Sintoma                   | O que fazer                                                         |
 | ------------------------- | ------------------------------------------------------------------- |

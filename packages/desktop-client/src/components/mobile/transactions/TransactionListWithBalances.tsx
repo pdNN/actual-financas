@@ -6,29 +6,18 @@ import { Label } from '@actual-app/components/label';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type { TransactionEntity } from '@actual-app/core/types/models';
 
-import type { IntegerAmount } from 'loot-core/shared/util';
-import type { TransactionEntity } from 'loot-core/types/models';
+import { Search } from '#components/common/Search';
+import { PullToRefresh } from '#components/mobile/PullToRefresh';
+import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
+import { DisplayPayeeProvider } from '#hooks/useDisplayPayee';
+import { SelectedProvider, useSelected } from '#hooks/useSelected';
+import { useSheetValue } from '#hooks/useSheetValue';
+import type { Binding, SheetFields, SheetNames } from '#spreadsheet';
 
 import { TransactionList } from './TransactionList';
-
-import { Search } from '@desktop-client/components/common/Search';
-import { PullToRefresh } from '@desktop-client/components/mobile/PullToRefresh';
-import {
-  CellValue,
-  CellValueText,
-} from '@desktop-client/components/spreadsheet/CellValue';
-import { DisplayPayeeProvider } from '@desktop-client/hooks/useDisplayPayee';
-import {
-  SelectedProvider,
-  useSelected,
-} from '@desktop-client/hooks/useSelected';
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
-import type {
-  Binding,
-  SheetFields,
-  SheetNames,
-} from '@desktop-client/spreadsheet';
 
 type TransactionSearchInputProps = {
   placeholder: string;
@@ -95,6 +84,8 @@ type TransactionListWithBalancesProps = {
   onOpenTransaction: (transaction: TransactionEntity) => void;
   onRefresh?: () => void;
   showMakeTransfer?: boolean;
+  isReconciling?: boolean;
+  onToggleTransactionCleared?: (transaction: TransactionEntity) => void;
 };
 
 export function TransactionListWithBalances({
@@ -112,6 +103,8 @@ export function TransactionListWithBalances({
   onOpenTransaction,
   onRefresh,
   showMakeTransfer = false,
+  isReconciling = false,
+  onToggleTransactionCleared,
 }: TransactionListWithBalancesProps) {
   const selectedInst = useSelected('transactions', [...transactions], []);
 
@@ -135,6 +128,7 @@ export function TransactionListWithBalances({
                 balance={balance}
                 balanceCleared={balanceCleared}
                 balanceUncleared={balanceUncleared}
+                alwaysShowCleared={isReconciling}
               />
             ) : (
               <Balance balance={balance} />
@@ -163,6 +157,8 @@ export function TransactionListWithBalances({
             onLoadMore={onLoadMore}
             onOpenTransaction={onOpenTransaction}
             showMakeTransfer={showMakeTransfer}
+            isReconciling={isReconciling}
+            onToggleTransactionCleared={onToggleTransactionCleared}
           />
         </PullToRefresh>
       </SelectedProvider>
@@ -191,24 +187,27 @@ type BalanceWithClearedProps = {
     TransactionListWithBalancesProps['balanceCleared']
   >;
   balance: TransactionListWithBalancesProps['balance'];
+  alwaysShowCleared?: boolean;
 };
 
 function BalanceWithCleared({
   balanceUncleared,
   balanceCleared,
   balance,
+  alwaysShowCleared = false,
 }: BalanceWithClearedProps) {
   const { t } = useTranslation();
   const unclearedAmount = useSheetValue<
     'account' | 'category',
     'balanceUncleared'
   >(balanceUncleared);
+  const showCleared = !!unclearedAmount || alwaysShowCleared;
 
   return (
     <>
       <View
         style={{
-          display: !unclearedAmount ? 'none' : undefined,
+          display: !showCleared ? 'none' : undefined,
           flexBasis: '33%',
         }}
       >
@@ -236,7 +235,7 @@ function BalanceWithCleared({
       <Balance balance={balance} />
       <View
         style={{
-          display: !unclearedAmount ? 'none' : undefined,
+          display: !showCleared ? 'none' : undefined,
           flexBasis: '33%',
         }}
       >

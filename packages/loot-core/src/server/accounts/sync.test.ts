@@ -1,16 +1,24 @@
 // @ts-strict-ignore
-import * as monthUtils from '../../shared/months';
-import type { SyncedPrefs } from '../../types/prefs';
-import * as db from '../db';
-import { loadMappings } from '../db/mappings';
-import { post } from '../post';
-import { getServer } from '../server-config';
-import { insertRule, loadRules } from '../transactions/transaction-rules';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import * as db from '#server/db';
+import { loadMappings } from '#server/db/mappings';
+import { post } from '#server/post';
+import { getServer } from '#server/server-config';
+import { setSyncingMode } from '#server/sync';
+import { handlers } from '#server/tests/mockSyncServer';
+import { insertRule, loadRules } from '#server/transactions/transaction-rules';
+import * as monthUtils from '#shared/months';
+import type { SyncedPrefs } from '#types/prefs';
 
-import { addTransactions, reconcileTransactions } from './sync';
+import { app as accountsApp } from './app';
+import {
+  addTransactions,
+  reconcileTransactions,
+  simpleFinBatchSync,
+} from './sync';
 
-vi.mock('../../shared/months', async () => ({
-  ...(await vi.importActual('../../shared/months')),
+vi.mock('#shared/months', async () => ({
+  ...(await vi.importActual('#shared/months')),
   currentDay: vi.fn(),
   currentMonth: vi.fn(),
 }));
@@ -165,6 +173,88 @@ describe('Account sync', () => {
     const transactions2 = await getAllTransactions();
     expect(transactions2.length).toBe(2);
     expect(transactions2).toMatchSnapshot();
+  });
+
+  test('reconcile doesnt rematch deleted transactions with reimportDeleted override false', async () => {
+    const { id: acctId } = await prepareDatabase();
+
+    await reconcileTransactions(acctId, [
+      { date: '2020-01-01', imported_id: 'finid-override' },
+    ]);
+
+    const transactions1 = await getAllTransactions();
+    expect(transactions1.length).toBe(1);
+
+    await db.deleteTransaction(transactions1[0]);
+
+    await reconcileTransactions(
+      acctId,
+      [{ date: '2020-01-01', imported_id: 'finid-override' }],
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+    );
+    const transactions2 = await getAllTransactions();
+    expect(transactions2.length).toBe(1);
+  });
+
+  test('reconcile does rematch deleted transactions with reimportDeleted override true', async () => {
+    const { id: acctId } = await prepareDatabase();
+
+    await reconcileTransactions(acctId, [
+      { date: '2020-01-01', imported_id: 'finid-override2' },
+    ]);
+
+    const transactions1 = await getAllTransactions();
+    expect(transactions1.length).toBe(1);
+
+    await db.deleteTransaction(transactions1[0]);
+
+    await reconcileTransactions(
+      acctId,
+      [{ date: '2020-01-01', imported_id: 'finid-override2' }],
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+    );
+    const transactions2 = await getAllTransactions();
+    expect(transactions2.length).toBe(2);
+  });
+
+  test('reimportDeleted override takes precedence over stored preference', async () => {
+    const { id: acctId } = await prepareDatabase();
+    const reimportKey =
+      `sync-reimport-deleted-${acctId}` satisfies keyof SyncedPrefs;
+    // Preference says reimport (true), but override says don't (false)
+    await db.update('preferences', { id: reimportKey, value: 'true' });
+
+    await reconcileTransactions(acctId, [
+      { date: '2020-01-01', imported_id: 'finid-precedence' },
+    ]);
+
+    const transactions1 = await getAllTransactions();
+    expect(transactions1.length).toBe(1);
+
+    await db.deleteTransaction(transactions1[0]);
+
+    await reconcileTransactions(
+      acctId,
+      [{ date: '2020-01-01', imported_id: 'finid-precedence' }],
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+    );
+    const transactions2 = await getAllTransactions();
+    expect(transactions2.length).toBe(1);
   });
 
   test('reconcile run rules with inferred payee', async () => {
@@ -545,4 +635,214 @@ describe('Account sync', () => {
       expect(transactions[0].amount).toBe(-1239);
     },
   );
+});
+
+describe('SimpleFin batch sync', () => {
+  function mockSimpleFinTransactions(response) {
+    vi.mocked(asyncStorage.getItem).mockResolvedValue('test-token');
+    handlers['/simplefin/transactions'] = () => response;
+  }
+
+  afterEach(() => {
+    delete handlers['/simplefin/transactions'];
+  });
+
+  test('does not emit transaction CRDT messages when provider category appears later', async () => {
+    const providerAccountId = 'sf-account-1';
+    const acctId = await db.insertAccount({
+      id: 'acct-1',
+      account_id: providerAccountId,
+      name: 'Account 1',
+      account_sync_source: 'simpleFin',
+    });
+
+    const syncTransaction = category => {
+      mockSimpleFinTransactions({
+        [providerAccountId]: {
+          transactions: {
+            all: [
+              {
+                booked: true,
+                ...(category ? { category } : {}),
+                date: '2017-10-02',
+                payeeName: 'Coffee Shop',
+                transactionAmount: {
+                  amount: '-12.34',
+                },
+                transactionId: 'provider-tx-1',
+              },
+            ],
+            booked: [],
+            pending: [],
+          },
+          balances: [],
+          startingBalance: 0,
+        },
+        errors: {},
+      });
+
+      return accountsApp.handlers['simplefin-batch-sync']({ ids: [acctId] });
+    };
+
+    setSyncingMode('offline');
+    try {
+      const firstResult = await syncTransaction(null);
+      expect(firstResult[0].res.errors).toHaveLength(0);
+      expect(firstResult[0].res.newTransactions).toHaveLength(2);
+
+      const { count: crdtMessageCount } = await db.first<{ count: number }>(
+        'SELECT COUNT(*) as count FROM messages_crdt',
+      );
+      expect(crdtMessageCount).toBeGreaterThan(0);
+
+      global.stepForwardInTime();
+      const secondResult = await syncTransaction('provider-category');
+      expect(secondResult[0].res.errors).toHaveLength(0);
+      expect(secondResult[0].res.newTransactions).toHaveLength(0);
+      expect(secondResult[0].res.matchedTransactions).toHaveLength(0);
+
+      const secondSyncMessages = await db.all<db.DbCrdtMessage>(
+        'SELECT * FROM messages_crdt WHERE id > ? ORDER BY id',
+        [crdtMessageCount],
+      );
+
+      expect(secondSyncMessages).toHaveLength(3);
+      expect(secondSyncMessages.map(message => message.dataset)).toEqual([
+        'accounts',
+        'accounts',
+        'accounts',
+      ]);
+      expect(secondSyncMessages.map(message => message.column).sort()).toEqual([
+        'balance_current',
+        'bank_sync_status',
+        'last_sync',
+      ]);
+      expect(
+        secondSyncMessages.some(message => message.dataset === 'transactions'),
+      ).toBe(false);
+
+      const transactions = await getAllTransactions();
+      const syncedTransaction = transactions.find(
+        transaction => transaction.imported_id === 'provider-tx-1',
+      );
+      expect(syncedTransaction).toBeDefined();
+      expect(syncedTransaction.category).toBeNull();
+    } finally {
+      setSyncingMode('disabled');
+    }
+  });
+
+  test('returns ACCOUNT_MISSING error when an account is not in the response', async () => {
+    const presentAccountId = 'sf-account-1';
+    const missingAccountId = 'sf-account-2';
+
+    // Mock SimpleFin response that only returns data for one of two accounts
+    mockSimpleFinTransactions({
+      [presentAccountId]: {
+        transactions: { all: [], booked: [], pending: [] },
+        balances: [],
+        startingBalance: 0,
+      },
+      errors: {},
+    });
+
+    // Insert two accounts linked to SimpleFin
+    const acct1Id = await db.insertAccount({
+      id: 'acct-1',
+      account_id: presentAccountId,
+      name: 'Account 1',
+      account_sync_source: 'simpleFin',
+    });
+    await db.insertPayee({
+      id: 'transfer-' + acct1Id,
+      name: '',
+      transfer_acct: acct1Id,
+    });
+
+    const acct2Id = await db.insertAccount({
+      id: 'acct-2',
+      account_id: missingAccountId,
+      name: 'Account 2',
+      account_sync_source: 'simpleFin',
+    });
+    await db.insertPayee({
+      id: 'transfer-' + acct2Id,
+      name: '',
+      transfer_acct: acct2Id,
+    });
+
+    const results = await simpleFinBatchSync([
+      { id: 'acct-1', account_id: presentAccountId },
+      { id: 'acct-2', account_id: missingAccountId },
+    ]);
+
+    // The present account should succeed (no error_code)
+    const presentResult = results.find(r => r.accountId === 'acct-1');
+    expect(presentResult).toBeDefined();
+    expect(presentResult.res.error_code).toBeUndefined();
+
+    // The missing account should have ACCOUNT_MISSING error
+    const missingResult = results.find(r => r.accountId === 'acct-2');
+    expect(missingResult).toBeDefined();
+    expect(missingResult.res.error_code).toBe('ACCOUNT_MISSING');
+    expect(missingResult.res.error_type).toBe('ACCOUNT_MISSING');
+  });
+
+  test('propagates ACCOUNT_MISSING error from SimpleFin response errors', async () => {
+    const presentAccountId = 'sf-account-1';
+    const missingAccountId = 'sf-account-2';
+
+    // Mock SimpleFin response with error entry for missing account
+    mockSimpleFinTransactions({
+      [presentAccountId]: {
+        transactions: { all: [], booked: [], pending: [] },
+        balances: [],
+        startingBalance: 0,
+      },
+      errors: {
+        [missingAccountId]: [
+          {
+            error_type: 'ACCOUNT_MISSING',
+            error_code: 'ACCOUNT_MISSING',
+            reason: 'Account not found',
+          },
+        ],
+      },
+    });
+
+    const acct1Id = await db.insertAccount({
+      id: 'acct-1',
+      account_id: presentAccountId,
+      name: 'Account 1',
+      account_sync_source: 'simpleFin',
+    });
+    await db.insertPayee({
+      id: 'transfer-' + acct1Id,
+      name: '',
+      transfer_acct: acct1Id,
+    });
+
+    const acct2Id = await db.insertAccount({
+      id: 'acct-2',
+      account_id: missingAccountId,
+      name: 'Account 2',
+      account_sync_source: 'simpleFin',
+    });
+    await db.insertPayee({
+      id: 'transfer-' + acct2Id,
+      name: '',
+      transfer_acct: acct2Id,
+    });
+
+    const results = await simpleFinBatchSync([
+      { id: 'acct-1', account_id: presentAccountId },
+      { id: 'acct-2', account_id: missingAccountId },
+    ]);
+
+    // The missing account should get the ACCOUNT_MISSING error from the errors map
+    const missingResult = results.find(r => r.accountId === 'acct-2');
+    expect(missingResult).toBeDefined();
+    expect(missingResult.res.error_code).toBe('ACCOUNT_MISSING');
+    expect(missingResult.res.error_type).toBe('ACCOUNT_MISSING');
+  });
 });

@@ -1,36 +1,41 @@
 // @ts-strict-ignore
 import * as CRDT from '@actual-app/crdt';
 
-import { createTestBudget } from '../../mocks/budget';
-import { captureBreadcrumb, captureException } from '../../platform/exceptions';
-import * as asyncStorage from '../../platform/server/asyncStorage';
-import * as connection from '../../platform/server/connection';
-import * as fs from '../../platform/server/fs';
-import { logger } from '../../platform/server/log';
-import * as Platform from '../../shared/platform';
-import type { Budget } from '../../types/budget';
-import { createApp } from '../app';
-import * as budget from '../budget/base';
-import * as cloudStorage from '../cloud-storage';
-import * as db from '../db';
-import * as mappings from '../db/mappings';
-import { handleBudgetImport } from '../importers';
-import type { ImportableBudgetType } from '../importers';
-import { app as mainApp } from '../main-app';
-import { mutator } from '../mutators';
-import * as prefs from '../prefs';
-import { getServer } from '../server-config';
-import * as sheet from '../sheet';
-import { clearFullSyncTimeout, initialFullSync, setSyncingMode } from '../sync';
-import * as syncMigrations from '../sync/migrate';
-import * as rules from '../transactions/transaction-rules';
-import { clearUndo } from '../undo';
-import { updateVersion } from '../update';
+import { createTestBudget } from '#mocks/budget';
+import { captureBreadcrumb, captureException } from '#platform/exceptions';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import * as connection from '#platform/server/connection';
+import * as fs from '#platform/server/fs';
+import { logger } from '#platform/server/log';
+import { createApp } from '#server/app';
+import * as budget from '#server/budget/base';
+import * as cloudStorage from '#server/cloud-storage';
+import * as db from '#server/db';
+import * as mappings from '#server/db/mappings';
+import { resetFormulaPreferencesCache } from '#server/formulas/bootstrap';
+import { handleBudgetImport } from '#server/importers';
+import type { ImportableBudgetType } from '#server/importers';
+import { app as mainApp } from '#server/main-app';
+import { mutator } from '#server/mutators';
+import * as prefs from '#server/prefs';
+import { getServer } from '#server/server-config';
+import * as sheet from '#server/sheet';
+import {
+  clearFullSyncTimeout,
+  initialFullSync,
+  setSyncingMode,
+} from '#server/sync';
+import * as syncMigrations from '#server/sync/migrate';
+import * as rules from '#server/transactions/transaction-rules';
+import { clearUndo } from '#server/undo';
+import { updateVersion } from '#server/update';
 import {
   idFromBudgetName,
   uniqueBudgetName,
   validateBudgetName,
-} from '../util/budget-name';
+} from '#server/util/budget-name';
+import * as Platform from '#shared/platform';
+import type { Budget } from '#types/budget';
 
 import {
   loadBackup as _loadBackup,
@@ -252,6 +257,7 @@ async function createDemoBudget() {
 
 async function closeBudget() {
   captureBreadcrumb({ message: 'Closing budget' });
+  resetFormulaPreferencesCache();
 
   // The spreadsheet may be running, wait for it to complete
   await sheet.waitOnSpreadsheet();
@@ -408,6 +414,11 @@ async function createBudget({
     id = testBudgetId || TEST_BUDGET_ID;
 
     if (await fs.exists(fs.getBudgetDir(id))) {
+      // Close the budget first if it's currently loaded, so the
+      // database is properly shut down before we remove its files.
+      if (prefs.getPrefs()?.id === id) {
+        await closeBudget();
+      }
       await fs.removeDirRecursively(fs.getBudgetDir(id));
     }
   } else {
@@ -456,19 +467,44 @@ async function createBudget({
 
 async function importBudget({
   filepath,
+  buffer,
+  filename,
   type,
 }: {
-  filepath: string;
   type: ImportableBudgetType;
-}): Promise<{ error?: string }> {
+  /** Path to the file to import, on the engine's filesystem. */
+  filepath?: string;
+  /** Raw contents of the file to import; alternative to `filepath`. */
+  buffer?: ArrayBuffer;
+  /**
+   * Original name of the imported file; only used together with `buffer`,
+   * to derive the budget name for some import types.
+   */
+  filename?: string;
+}): Promise<{ error?: string; meta?: unknown; id?: string }> {
   try {
-    if (!(await fs.exists(filepath))) {
-      throw new Error(`File not found at the provided path: ${filepath}`);
+    let contents: Buffer;
+    let name: string;
+    if (filepath != null) {
+      if (!(await fs.exists(filepath))) {
+        throw new Error(`File not found at the provided path: ${filepath}`);
+      }
+
+      contents = Buffer.from(await fs.readFile(filepath, 'binary'));
+      name = filepath;
+    } else if (buffer != null) {
+      contents = Buffer.from(buffer);
+      name = filename || 'budget-import';
+    } else {
+      throw new Error('Either `filepath` or `buffer` must be given');
     }
 
-    const buffer = Buffer.from(await fs.readFile(filepath, 'binary'));
-    const results = await handleBudgetImport(type, filepath, buffer);
-    return results || {};
+    const results = await handleBudgetImport(type, name, contents);
+    if (results && results.error) {
+      return results;
+    }
+    // A successful import leaves the imported budget loaded
+    return { id: prefs.getPrefs()?.id };
   } catch (err) {
     err.message = 'Error importing budget: ' + err.message;
     captureException(err);
@@ -478,8 +514,10 @@ async function importBudget({
 
 async function exportBudget() {
   try {
+    const exported = await cloudStorage.exportBuffer();
     return {
-      data: await cloudStorage.exportBuffer(),
+      data: exported?.data ?? null,
+      warnings: exported?.warnings ?? [],
     };
   } catch (err) {
     err.message = 'Error exporting budget: ' + err.message;
@@ -522,6 +560,7 @@ async function _loadBudget(id: Budget['id']): Promise<{
   }
 
   try {
+    resetFormulaPreferencesCache();
     await prefs.loadPrefs(id);
     await db.openDatabase(id);
   } catch (e) {
@@ -641,7 +680,11 @@ async function uploadFileWeb({
     return null;
   }
 
-  await fs.writeFile('/uploads/' + filename, contents);
+  const safeName = filename.split(/[/\\]/).pop()?.replaceAll('\0', '');
+  if (!safeName || safeName === '.' || safeName === '..') {
+    throw new Error('Invalid upload filename');
+  }
+  await fs.writeFile(fs.join('/uploads', safeName), contents);
   return {};
 }
 

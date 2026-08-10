@@ -8,28 +8,27 @@ import {
   SvgDotsHorizontalTriple,
   SvgLockOpen,
 } from '@actual-app/components/icons/v1';
-import { SvgNotesPaper } from '@actual-app/components/icons/v2';
+import { SvgLockClosed, SvgNotesPaper } from '@actual-app/components/icons/v2';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-
-import type { AccountEntity } from 'loot-core/types/models';
+import type { AccountEntity } from '@actual-app/core/types/models';
 
 import {
   Modal,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '@desktop-client/components/common/Modal';
-import { Notes } from '@desktop-client/components/Notes';
-import { validateAccountName } from '@desktop-client/components/util/accountValidation';
-import { useAccount } from '@desktop-client/hooks/useAccount';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useNotes } from '@desktop-client/hooks/useNotes';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+} from '#components/common/Modal';
+import { Notes } from '#components/Notes';
+import { validateAccountName } from '#components/util/accountValidation';
+import { useAccount } from '#hooks/useAccount';
+import { useAccounts } from '#hooks/useAccounts';
+import { useNotes } from '#hooks/useNotes';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import type { Modal as ModalType } from '#modals/modalsSlice';
 
 type AccountMenuModalProps = Extract<
   ModalType,
@@ -43,6 +42,7 @@ export function AccountMenuModal({
   onReopenAccount,
   onEditNotes,
   onClose,
+  onReconcile,
   onToggleRunningBalance,
   onToggleReconciled,
 }: AccountMenuModalProps) {
@@ -92,12 +92,14 @@ export function AccountMenuModal({
     onEditNotes?.(account.id);
   };
 
+  const canReconcile = !!onReconcile;
+
   const buttonStyle: CSSProperties = {
     ...styles.mediumText,
     height: styles.mobileMinHeight,
     color: theme.formLabelText,
     // Adjust based on desired number of buttons per row.
-    flexBasis: '100%',
+    flexBasis: canReconcile ? '48%' : '100%',
   };
 
   if (!account) {
@@ -114,7 +116,7 @@ export function AccountMenuModal({
         },
       }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             leftContent={
@@ -140,7 +142,7 @@ export function AccountMenuModal({
                 )}
               </Fragment>
             }
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View
             style={{
@@ -189,6 +191,16 @@ export function AccountMenuModal({
                 />
                 <Trans>Edit notes</Trans>
               </Button>
+              {canReconcile && (
+                <Button style={buttonStyle} onPress={() => onReconcile?.()}>
+                  <SvgLockClosed
+                    width={20}
+                    height={20}
+                    style={{ paddingRight: 5 }}
+                  />
+                  <Trans>Reconcile</Trans>
+                </Button>
+              )}
             </View>
           </View>
         </>
@@ -295,7 +307,7 @@ function AdditionalAccountMenu({
                   onToggleReconciled?.();
                   break;
                 default:
-                  throw new Error(`Unrecognized menu option: ${name}`);
+                  throw new Error(`Unrecognized menu option: ${String(name)}`);
               }
             }}
           />

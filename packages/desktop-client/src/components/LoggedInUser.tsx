@@ -9,34 +9,29 @@ import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import { listen } from '@actual-app/core/platform/client/connection';
+import type { RemoteFile, SyncedLocalFile } from '@actual-app/core/types/file';
+import type { TransObjectLiteral } from '@actual-app/core/types/util';
 
-import { listen } from 'loot-core/platform/client/connection';
-import type { RemoteFile, SyncedLocalFile } from 'loot-core/types/file';
-import type { TransObjectLiteral } from 'loot-core/types/util';
+import { useAuth } from '#auth/AuthProvider';
+import { Permissions } from '#auth/types';
+import { closeBudget } from '#budgetfiles/budgetfilesSlice';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useNavigate } from '#hooks/useNavigate';
+import { useDispatch, useSelector } from '#redux';
+import { getUserData, signOut } from '#users/usersSlice';
 
 import { PrivacyFilter } from './PrivacyFilter';
 import { useMultiuserEnabled, useServerURL } from './ServerContext';
 
-import { useAuth } from '@desktop-client/auth/AuthProvider';
-import { Permissions } from '@desktop-client/auth/types';
-import { closeBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useDispatch, useSelector } from '@desktop-client/redux';
-import { getUserData, signOut } from '@desktop-client/users/usersSlice';
-
 type LoggedInUserProps = {
   hideIfNoServer?: boolean;
   style?: CSSProperties;
-  color?: string;
 };
 
-export function LoggedInUser({
-  hideIfNoServer,
-  style,
-  color,
-}: LoggedInUserProps) {
+export function LoggedInUser({ hideIfNoServer, style }: LoggedInUserProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -133,16 +128,40 @@ export function LoggedInUser({
     }
   };
 
-  function serverMessage() {
+  function getServerStatus() {
     if (!serverUrl) {
-      return t('No server');
+      return {
+        message: t('No server'),
+        tooltip: (
+          <Trans>
+            A server syncs your budget across devices and keeps a backup of your
+            data.
+            <br />
+            Click to set one up.
+          </Trans>
+        ),
+      };
     }
 
     if (userData?.offline) {
-      return t('Server offline');
+      return {
+        message: t('Server offline'),
+        tooltip: (
+          <Trans>
+            Can't reach your server right now.
+            <br />
+            Changes are saved locally and will sync once it's reachable again.
+          </Trans>
+        ),
+      };
     }
 
-    return t('Server online');
+    return {
+      message: t('Server online'),
+      tooltip: (
+        <Trans>Connected to your server — your budget is syncing.</Trans>
+      ),
+    };
   }
 
   if (hideIfNoServer && !serverUrl) return null;
@@ -221,16 +240,23 @@ export function LoggedInUser({
     return [...adminMenu, ...baseMenu];
   };
 
+  const serverStatus = getServerStatus();
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', ...style }}>
-      <Button
-        ref={triggerRef}
-        variant="bare"
-        onPress={() => setMenuOpen(true)}
-        style={{ color: color || 'inherit' }}
+      <Tooltip
+        placement="bottom end"
+        content={serverStatus.tooltip}
+        triggerProps={{ isDisabled: menuOpen }}
       >
-        {serverMessage()}
-      </Button>
+        <Button
+          ref={triggerRef}
+          variant="bare"
+          onPress={() => setMenuOpen(true)}
+        >
+          {serverStatus.message}
+        </Button>
+      </Tooltip>
       {!loading &&
         multiuserEnabled &&
         userData &&

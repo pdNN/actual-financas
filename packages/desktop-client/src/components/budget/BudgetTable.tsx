@@ -1,15 +1,20 @@
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-
-import { q } from 'loot-core/shared/query';
+import { q } from '@actual-app/core/shared/query';
 import type {
   CategoryEntity,
   CategoryGroupEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+
+import type { DropPosition } from '#components/sort';
+import { SchedulesProvider } from '#hooks/useCachedSchedules';
+import { useCategories } from '#hooks/useCategories';
+import { useGlobalPref } from '#hooks/useGlobalPref';
+import { useLocalPref } from '#hooks/useLocalPref';
 
 import { BudgetCategories } from './BudgetCategories';
 import { BudgetSummaries } from './BudgetSummaries';
@@ -23,12 +28,6 @@ import {
   separateGroups,
 } from './util';
 
-import type { DropPosition } from '@desktop-client/components/sort';
-import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
-
 type BudgetTableProps = {
   type: string;
   prewarmStartMonth: string;
@@ -41,6 +40,10 @@ type BudgetTableProps = {
   onDeleteGroup: (id: CategoryGroupEntity['id']) => void;
   onApplyBudgetTemplatesInGroup: (
     categoryIds: Array<CategoryEntity['id']>,
+  ) => void;
+  onSortCategories?: (
+    groupId: CategoryGroupEntity['id'],
+    direction: 'asc' | 'desc',
   ) => void;
   onReorderCategory: (params: {
     id: CategoryEntity['id'];
@@ -67,6 +70,7 @@ export function BudgetTable(props: BudgetTableProps) {
     onSaveGroup,
     onDeleteGroup,
     onApplyBudgetTemplatesInGroup,
+    onSortCategories,
     onReorderCategory,
     onReorderGroup,
     onShowActivity,
@@ -85,6 +89,18 @@ export function BudgetTable(props: BudgetTableProps) {
   const [editing, setEditing] = useState<{ id: string; cell: string } | null>(
     null,
   );
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const savedScrollPosition = sessionStorage.getItem(
+      'budget-scroll-position',
+    );
+    if (savedScrollPosition != null && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = Number(savedScrollPosition);
+      sessionStorage.removeItem('budget-scroll-position');
+    }
+  }, []);
 
   const onEditMonth = (id: string, month: string) => {
     setEditing(id ? { id, cell: month } : null);
@@ -217,6 +233,16 @@ export function BudgetTable(props: BudgetTableProps) {
     onCollapse(categoryGroups.map(g => g.id));
   };
 
+  const _onShowActivity = (id: string, month?: string) => {
+    if (scrollContainerRef.current) {
+      sessionStorage.setItem(
+        'budget-scroll-position',
+        String(scrollContainerRef.current.scrollTop),
+      );
+    }
+    onShowActivity(id, month);
+  };
+
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
 
   return (
@@ -269,6 +295,8 @@ export function BudgetTable(props: BudgetTableProps) {
           collapseAllCategories={collapseAllCategories}
         />
         <View
+          ref={scrollContainerRef}
+          data-testid="budget-table-scroll-container"
           style={{
             overflowY: 'scroll',
             overflowAnchor: 'none',
@@ -296,8 +324,9 @@ export function BudgetTable(props: BudgetTableProps) {
                 onReorderCategory={_onReorderCategory}
                 onReorderGroup={_onReorderGroup}
                 onBudgetAction={onBudgetAction}
-                onShowActivity={onShowActivity}
+                onShowActivity={_onShowActivity}
                 onApplyBudgetTemplatesInGroup={onApplyBudgetTemplatesInGroup}
+                onSortCategories={onSortCategories}
               />
             </SchedulesProvider>
           </View>

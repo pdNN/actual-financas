@@ -12,29 +12,30 @@ import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { toRelaxedNumber } from '@actual-app/core/shared/util';
 
-import { toRelaxedNumber } from 'loot-core/shared/util';
-
-import { useCreateAccountMutation } from '@desktop-client/accounts';
-import { Link } from '@desktop-client/components/common/Link';
+import { useCreateAccountMutation } from '#accounts';
+import { Link } from '#components/common/Link';
 import {
   Modal,
   ModalButtons,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '@desktop-client/components/common/Modal';
-import { Checkbox } from '@desktop-client/components/forms';
-import { validateAccountName } from '@desktop-client/components/util/accountValidation';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { closeModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+} from '#components/common/Modal';
+import { Checkbox } from '#components/forms';
+import { validateAccountName } from '#components/util/accountValidation';
+import { useAccounts } from '#hooks/useAccounts';
+import { useNavigate } from '#hooks/useNavigate';
+import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
+import { closeModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 export function CreateLocalAccountModal() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const isUsingServer = useSyncServerStatus() !== 'no-server';
   const { data: accounts = [] } = useAccounts();
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
@@ -83,21 +84,48 @@ export function CreateLocalAccountModal() {
   };
   return (
     <Modal name="add-local-account">
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={
-              <ModalTitle title={t('Create Local Account')} shrinkOnOverflow />
+              <ModalTitle
+                title={
+                  isUsingServer ? t('Create Local Account') : t('Add account')
+                }
+                shrinkOnOverflow
+              />
             }
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View>
+            {!isUsingServer && (
+              <Text
+                style={{
+                  color: theme.pageTextSubdued,
+                  lineHeight: 1.5,
+                  marginBottom: 15,
+                }}
+              >
+                <Trans>
+                  Once the account is created, you can also{' '}
+                  <Link
+                    variant="external"
+                    linkColor="muted"
+                    to="https://actualbudget.org/docs/transactions/importing"
+                  >
+                    import QIF/OFX/QFX files
+                  </Link>{' '}
+                  into it.
+                </Trans>
+              </Text>
+            )}
             <Form onSubmit={onSubmit}>
               <InlineField label={t('Name')} width="100%">
                 <InitialFocus>
                   <Input
                     name="name"
                     value={name}
+                    placeholder={t('e.g. Bank, Savings, Credit Card, Cash')}
                     onChangeValue={setName}
                     onUpdate={value => {
                       const name = value.trim();
@@ -151,7 +179,13 @@ export function CreateLocalAccountModal() {
                       marginTop: 3,
                     }}
                   >
-                    <Text>
+                    <Text style={{ display: 'block' }}>
+                      <Trans>
+                        Off-budget accounts (like investments, loans, or your
+                        house) are tracked but not part of your spending budget.
+                      </Trans>
+                    </Text>
+                    <Text style={{ display: 'block' }}>
                       <Trans>
                         This cannot be changed later. See{' '}
                         <Link
@@ -191,8 +225,8 @@ export function CreateLocalAccountModal() {
               )}
 
               <ModalButtons>
-                <Button onPress={close}>
-                  <Trans>Back</Trans>
+                <Button onPress={() => state.close()}>
+                  {isUsingServer ? <Trans>Back</Trans> : <Trans>Cancel</Trans>}
                 </Button>
                 <Button
                   type="submit"

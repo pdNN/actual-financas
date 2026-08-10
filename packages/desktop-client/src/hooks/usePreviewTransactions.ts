@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { send } from 'loot-core/platform/client/connection';
-import { computeSchedulePreviewTransactions } from 'loot-core/shared/schedules';
-import { ungroupTransactions } from 'loot-core/shared/transactions';
-import type { IntegerAmount } from 'loot-core/shared/util';
-import type { ScheduleEntity, TransactionEntity } from 'loot-core/types/models';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import { computeSchedulePreviewTransactions } from '@actual-app/core/shared/schedules';
+import { ungroupTransactions } from '@actual-app/core/shared/transactions';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type {
+  ScheduleEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
 
 import { useCachedSchedules } from './useCachedSchedules';
 import { useSyncedPref } from './useSyncedPref';
@@ -32,6 +36,25 @@ type UsePreviewTransactionsResult = {
   error?: Error;
 };
 
+export function comparePreviewTransactions(
+  a: Pick<TransactionEntity, 'date' | 'amount'> & {
+    sort_order?: number | null;
+  },
+  b: Pick<TransactionEntity, 'date' | 'amount'> & {
+    sort_order?: number | null;
+  },
+): number {
+  const dateDiff =
+    monthUtils.parseDate(b.date).getTime() -
+    monthUtils.parseDate(a.date).getTime();
+  if (dateDiff !== 0) return dateDiff;
+
+  const sortOrderDiff = (b.sort_order ?? 0) - (a.sort_order ?? 0);
+  if (sortOrderDiff !== 0) return sortOrderDiff;
+
+  return a.amount - b.amount;
+}
+
 export function usePreviewTransactions({
   filter,
   options,
@@ -47,17 +70,8 @@ export function usePreviewTransactions({
   } = useCachedSchedules();
   const [isLoading, setIsLoading] = useState(isSchedulesLoading);
   const [error, setError] = useState<Error | undefined>(undefined);
-  const [runningBalances, setRunningBalances] = useState<
-    Map<TransactionEntity['id'], IntegerAmount>
-  >(new Map());
 
   const [upcomingLength] = useSyncedPref('upcomingScheduledTransactionLength');
-
-  // We don't want to re-render if options changes.
-  // Putting options in a ref will prevent that and
-  // allow us to use the latest options on next render.
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
 
   const scheduleTransactions = useMemo(() => {
     if (isSchedulesLoading) {
@@ -93,10 +107,15 @@ export function usePreviewTransactions({
     )
       .then(newTrans => {
         if (!isUnmounted) {
+          const scheduleById = new Map(schedules.map(s => [s.id, s]));
           const withDefaults = newTrans.map(t => ({
             ...t,
             category: t.schedule != null ? statuses.get(t.schedule) : undefined,
             schedule: t.schedule,
+            sort_order:
+              t.schedule != null
+                ? scheduleById.get(t.schedule)?.sort_order
+                : undefined,
             subtransactions: t.subtransactions?.map(
               (st: TransactionEntity) => ({
                 ...st,
@@ -106,23 +125,11 @@ export function usePreviewTransactions({
             ),
           }));
 
+          // re-sort in case rule actions have changed the dates
+          withDefaults.sort(comparePreviewTransactions);
+
           const ungroupedTransactions = ungroupTransactions(withDefaults);
           setPreviewTransactions(ungroupedTransactions);
-
-          if (optionsRef.current?.calculateRunningBalances) {
-            setRunningBalances(
-              // We always use the bottom up calculation for preview transactions
-              // because the hook controls the order of the transactions. We don't
-              // need to provide a custom way for consumers to calculate the running
-              // balances, at least as of writing.
-              calculateRunningBalancesBottomUp(
-                ungroupedTransactions,
-                // Preview transactions are behaves like 'all' splits
-                'all',
-                optionsRef.current?.startingBalance,
-              ),
-            );
-          }
 
           setIsLoading(false);
         }
@@ -138,6 +145,24 @@ export function usePreviewTransactions({
       isUnmounted = true;
     };
   }, [scheduleTransactions, schedules, statuses, upcomingLength]);
+
+  const runningBalances = useMemo(() => {
+    if (!options?.calculateRunningBalances) {
+      return new Map<TransactionEntity['id'], IntegerAmount>();
+    }
+
+    // We always use the bottom up calculation for preview transactions
+    // because the hook controls the order of the transactions.
+    return calculateRunningBalancesBottomUp(
+      previewTransactions,
+      'all',
+      options?.startingBalance,
+    );
+  }, [
+    previewTransactions,
+    options?.calculateRunningBalances,
+    options?.startingBalance,
+  ]);
 
   const returnError = error || scheduleQueryError;
   return {

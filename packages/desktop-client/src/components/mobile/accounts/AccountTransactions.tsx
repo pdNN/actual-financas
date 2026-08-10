@@ -1,31 +1,47 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 
-import { send } from 'loot-core/platform/client/connection';
-import type { Query } from 'loot-core/shared/query';
-import { isPreviewId } from 'loot-core/shared/transactions';
-import type { IntegerAmount } from 'loot-core/shared/util';
-import type { AccountEntity, TransactionEntity } from 'loot-core/types/models';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { Query } from '@actual-app/core/shared/query';
+import { isPreviewId } from '@actual-app/core/shared/transactions';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type {
+  AccountEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
 
-import { useSyncAndDownloadMutation } from '@desktop-client/accounts';
-import { markAccountRead } from '@desktop-client/accounts/accountsSlice';
-import { TransactionListWithBalances } from '@desktop-client/components/mobile/transactions/TransactionListWithBalances';
-import { useAccountPreviewTransactions } from '@desktop-client/hooks/useAccountPreviewTransactions';
-import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { getSchedulesQuery } from '@desktop-client/hooks/useSchedules';
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import {
+  useSyncAndDownloadMutation,
+  useUpdateAccountMutation,
+} from '#accounts';
+import { markAccountRead } from '#accounts/accountsSlice';
+import * as reconciliation from '#accounts/reconciliation';
+import { ReconcilingBanner } from '#components/mobile/accounts/ReconcilingBanner';
+import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { useAccountPreviewTransactions } from '#hooks/useAccountPreviewTransactions';
+import { SchedulesProvider } from '#hooks/useCachedSchedules';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useNavigate } from '#hooks/useNavigate';
+import { getSchedulesQuery } from '#hooks/useSchedules';
+import { useSheetValue } from '#hooks/useSheetValue';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { useTransactionBatchActions } from '#hooks/useTransactionBatchActions';
 import {
   calculateRunningBalancesTopDown,
   useTransactions,
-} from '@desktop-client/hooks/useTransactions';
-import { useTransactionsSearch } from '@desktop-client/hooks/useTransactionsSearch';
-import { collapseModals, pushModal } from '@desktop-client/modals/modalsSlice';
-import * as queries from '@desktop-client/queries';
-import { useDispatch } from '@desktop-client/redux';
-import * as bindings from '@desktop-client/spreadsheet/bindings';
+} from '#hooks/useTransactions';
+import { useTransactionsSearch } from '#hooks/useTransactionsSearch';
+import { collapseModals, pushModal } from '#modals/modalsSlice';
+import * as queries from '#queries';
+import { useDispatch } from '#redux';
+import * as bindings from '#spreadsheet/bindings';
 
 export function AccountTransactions({
   account,
@@ -54,23 +70,55 @@ function TransactionListWithPreviews({
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const baseTransactionsQuery = useCallback(
-    () =>
-      queries.transactions(account.id).options({ splits: 'all' }).select('*'),
-    [account.id],
-  );
-
   const [showRunningBalances] = useSyncedPref(`show-balances-${account.id}`);
   const [hideReconciled] = useSyncedPref(`hide-reconciled-${account.id}`);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parsedReconcileAmount = parseInt(
+    searchParams.get('reconcile') ?? '',
+    10,
+  );
+  const reconcileAmount = Number.isNaN(parsedReconcileAmount)
+    ? null
+    : parsedReconcileAmount;
+  const isReconciling = reconcileAmount != null;
+
+  const baseTransactionsQuery = useCallback(() => {
+    let query = queries
+      .transactions(account.id)
+      .options({ splits: 'all' })
+      .select('*');
+    if (hideReconciled === 'true' && !isReconciling) {
+      query = query.filter({ reconciled: { $eq: false } });
+    }
+    return query;
+  }, [account.id, hideReconciled, isReconciling]);
   const [transactionsQuery, setTransactionsQuery] = useState<Query>(
     baseTransactionsQuery(),
   );
 
-  const { isSearching, search: onSearch } = useTransactionsSearch({
+  const { isSearching, search } = useTransactionsSearch({
     updateQuery: setTransactionsQuery,
     resetQuery: () => setTransactionsQuery(baseTransactionsQuery()),
     dateFormat,
   });
+
+  const searchTextRef = useRef('');
+
+  const onSearch = useCallback(
+    (searchText: string) => {
+      searchTextRef.current = searchText;
+      search(searchText);
+    },
+    [search],
+  );
+
+  useEffect(() => {
+    setTransactionsQuery(baseTransactionsQuery());
+    if (searchTextRef.current !== '') {
+      search(searchTextRef.current);
+    }
+  }, [baseTransactionsQuery, search]);
 
   const shouldCalculateRunningBalances =
     showRunningBalances === 'true' && !!account?.id && !isSearching;
@@ -182,6 +230,65 @@ function TransactionListWithPreviews({
     [dispatch, navigate],
   );
 
+  const { mutate: updateAccount } = useUpdateAccountMutation();
+  const { onBatchEdit } = useTransactionBatchActions();
+
+  const onDoneReconciling = useCallback(async () => {
+    await reconciliation.finishReconciliation(account.id, reconcileAmount);
+
+    updateAccount({
+      account: {
+        ...account,
+        last_reconciled: new Date().getTime().toString(),
+      },
+    });
+
+    setSearchParams(
+      prev => {
+        prev.delete('reconcile');
+        return prev;
+      },
+      { replace: true },
+    );
+  }, [account, reconcileAmount, setSearchParams, updateAccount]);
+
+  const onCreateReconciliationTransaction = useCallback(
+    async (targetDiff: number) => {
+      await reconciliation.createReconciliationTransaction(
+        account.id,
+        targetDiff,
+      );
+    },
+    [account.id],
+  );
+
+  const onToggleTransactionCleared = useCallback(
+    (transaction: TransactionEntity) => {
+      if (isPreviewId(transaction.id)) {
+        return;
+      }
+
+      if (transaction.reconciled) {
+        dispatch(
+          pushModal({
+            modal: {
+              name: 'confirm-transaction-edit',
+              options: {
+                confirmReason: 'unlockReconciled',
+                onConfirm: () => {
+                  void reconciliation.unlockTransaction(transaction.id);
+                },
+              },
+            },
+          }),
+        );
+      } else {
+        void onBatchEdit({ name: 'cleared', ids: [transaction.id] });
+      }
+    },
+    [dispatch, onBatchEdit],
+  );
+
   const balanceBindings = useMemo(
     () => ({
       balance: bindings.accountBalance(account.id),
@@ -191,36 +298,46 @@ function TransactionListWithPreviews({
     [account],
   );
 
-  const baseTransactions = !isSearching
+  const previewTransactionsToDisplay = isReconciling ? [] : previewTransactions;
+
+  const transactionsToDisplay = !isSearching
     ? // Do not render child transactions in the list, unless searching
-      previewTransactions.concat(transactions.filter(t => !t.is_child))
+      previewTransactionsToDisplay.concat(transactions.filter(t => !t.is_child))
     : transactions;
-  const transactionsToDisplay =
-    hideReconciled === 'true'
-      ? baseTransactions.filter(t => !t.reconciled)
-      : baseTransactions;
 
   return (
-    <TransactionListWithBalances
-      isLoading={
-        isSearching
-          ? isTransactionsLoading
-          : isTransactionsLoading || isPreviewTransactionsLoading
-      }
-      transactions={transactionsToDisplay}
-      balance={balanceBindings.balance}
-      balanceCleared={balanceBindings.cleared}
-      balanceUncleared={balanceBindings.uncleared}
-      runningBalances={allBalances}
-      showRunningBalances={shouldCalculateRunningBalances}
-      isLoadingMore={isLoadingMoreTransactions}
-      onLoadMore={fetchMoreTransactions}
-      searchPlaceholder={t('Search {{accountName}}', {
-        accountName: account.name,
-      })}
-      onSearch={onSearch}
-      onOpenTransaction={onOpenTransaction}
-      onRefresh={onRefresh}
-    />
+    <>
+      {isReconciling && (
+        <ReconcilingBanner
+          account={account}
+          targetBalance={reconcileAmount}
+          onDone={onDoneReconciling}
+          onCreateTransaction={onCreateReconciliationTransaction}
+        />
+      )}
+      <TransactionListWithBalances
+        isLoading={
+          isSearching || isReconciling
+            ? isTransactionsLoading
+            : isTransactionsLoading || isPreviewTransactionsLoading
+        }
+        transactions={transactionsToDisplay}
+        balance={balanceBindings.balance}
+        balanceCleared={balanceBindings.cleared}
+        balanceUncleared={balanceBindings.uncleared}
+        runningBalances={allBalances}
+        showRunningBalances={shouldCalculateRunningBalances}
+        isLoadingMore={isLoadingMoreTransactions}
+        onLoadMore={fetchMoreTransactions}
+        searchPlaceholder={t('Search {{accountName}}', {
+          accountName: account.name,
+        })}
+        onSearch={onSearch}
+        onOpenTransaction={onOpenTransaction}
+        onRefresh={onRefresh}
+        isReconciling={isReconciling}
+        onToggleTransactionCleared={onToggleTransactionCleared}
+      />
+    </>
   );
 }

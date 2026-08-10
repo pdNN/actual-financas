@@ -1,9 +1,14 @@
 import { join, resolve } from 'node:path';
 
-import * as bcrypt from 'bcrypt';
-
 import { bootstrapOpenId } from './accounts/openid';
-import { bootstrapPassword, loginWithPassword } from './accounts/password';
+import {
+  bootstrapPassword,
+  hashPassword,
+  isValidPassword,
+  loginWithPassword,
+  setPasswordHash,
+  verifyPassword,
+} from './accounts/password';
 import { openDatabase } from './db';
 import { config } from './load-config';
 
@@ -59,7 +64,11 @@ export function getLoginMethod(req) {
     (req.body || { loginMethod: null }).loginMethod &&
     config.get('allowedLoginMethods').includes(req.body.loginMethod)
   ) {
-    return req.body.loginMethod;
+    const accountDb = getAccountDb();
+    const row = accountDb.first('SELECT method FROM auth WHERE method = ?', [
+      req.body.loginMethod,
+    ]);
+    if (row) return req.body.loginMethod;
   }
 
   //BY-PASS ANY OTHER CONFIGURATION TO ENSURE HEADER AUTH
@@ -82,6 +91,15 @@ export async function bootstrap(loginSettings, forced = false) {
   const openIdEnabled = 'openId' in loginSettings;
 
   const accountDb = getAccountDb();
+
+  let passwordHash;
+  if (passEnabled) {
+    if (!isValidPassword(loginSettings.password)) {
+      return { error: 'invalid-password' };
+    }
+    passwordHash = await hashPassword(loginSettings.password);
+  }
+
   accountDb.mutate('BEGIN TRANSACTION');
   try {
     const { countOfOwner } =
@@ -109,11 +127,7 @@ export async function bootstrap(loginSettings, forced = false) {
     }
 
     if (passEnabled) {
-      const { error } = bootstrapPassword(loginSettings.password);
-      if (error) {
-        accountDb.mutate('ROLLBACK');
-        return { error };
-      }
+      setPasswordHash(passwordHash);
     }
 
     if (openIdEnabled && forced) {
@@ -125,7 +139,7 @@ export async function bootstrap(loginSettings, forced = false) {
     }
 
     accountDb.mutate('COMMIT');
-    return passEnabled ? loginWithPassword(loginSettings.password) : {};
+    return passEnabled ? await loginWithPassword(loginSettings.password) : {};
   } catch (error) {
     accountDb.mutate('ROLLBACK');
     throw error;
@@ -172,15 +186,13 @@ export async function disableOpenID(loginSettings) {
     return { error: 'invalid-password' };
   }
 
-  if (passwordHash) {
-    const confirmed = bcrypt.compareSync(loginSettings.password, passwordHash);
+  const confirmed = await verifyPassword(loginSettings.password, passwordHash);
 
-    if (!confirmed) {
-      return { error: 'invalid-password' };
-    }
+  if (!confirmed) {
+    return { error: 'invalid-password' };
   }
 
-  const { error } = bootstrapPassword(loginSettings.password) || {};
+  const { error } = await bootstrapPassword(loginSettings.password);
   if (error) {
     return { error };
   }
@@ -208,7 +220,13 @@ export async function disableOpenID(loginSettings) {
 
 export function getSession(token) {
   const accountDb = getAccountDb();
-  return accountDb.first('SELECT * FROM sessions WHERE token = ?', [token]);
+  return accountDb.first(
+    `SELECT sessions.*
+     FROM sessions
+     JOIN users ON users.id = sessions.user_id
+     WHERE sessions.token = ? AND users.enabled = 1`,
+    [token],
+  );
 }
 
 export function getUserInfo(userId) {

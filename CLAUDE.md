@@ -1,3 +1,6 @@
+@AGENTS.md
+@.github/agents/pr-and-commit-rules.md
+
 # CLAUDE.md — actual-financas
 
 > **A fonte de verdade das regras é `.specify/memory/constitution.md`.**
@@ -107,13 +110,15 @@ lote. Sem modelo local na VM.
 Sempre da **raiz** do repositório:
 
 ```bash
-yarn typecheck         # obrigatório antes de commitar
+yarn typecheck         # tsgo + lage typecheck — obrigatório antes de commitar
 yarn lint              # oxfmt --check + oxlint --type-aware
 yarn lint:fix          # auto-corrige
 yarn test              # todos os pacotes, via lage
 yarn start             # frontend em :3001
 yarn start:server-dev  # sync-server :5006 + frontend
 ```
+
+Node 24 (ver `.nvmrc`), Yarn ^4.9.1. Sempre da raiz do repositório.
 
 **Portão de qualidade** (princípio VII): `yarn typecheck && yarn lint && yarn test`
 verde antes de qualquer commit.

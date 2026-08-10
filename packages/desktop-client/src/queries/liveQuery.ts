@@ -1,6 +1,6 @@
 // @ts-strict-ignore
-import { listen } from 'loot-core/platform/client/connection';
-import type { Query } from 'loot-core/shared/query';
+import { listen } from '@actual-app/core/platform/client/connection';
+import type { Query } from '@actual-app/core/shared/query';
 
 import { aqlQuery } from './aqlQuery';
 
@@ -215,11 +215,15 @@ export class LiveQuery<TResponse = unknown> {
         }
 
         this.onData(this.data, previousData);
-        this.inflightRequestId = null;
       }
     } catch (e) {
       console.log('Error fetching data', e);
       this.onError(e);
+    } finally {
+      // always clear the request id, to prevent an infinite loop
+      if (this.inflightRequestId === reqId) {
+        this.inflightRequestId = null;
+      }
     }
   };
 }

@@ -1,6 +1,6 @@
-import * as monthUtils from 'loot-core/shared/months';
-import type { TimeFrame } from 'loot-core/types/models';
-import type { SyncedPrefs } from 'loot-core/types/prefs';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { TimeFrame } from '@actual-app/core/types/models';
+import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 
 export function validateStart(
   earliest: string,
@@ -88,16 +88,13 @@ export function validateEnd(
 
 export function validateRange(
   earliest: string,
-  latest: string,
   start: string,
   end: string,
-) {
-  if (end > latest) {
-    end = latest;
-  }
+): [string, string] {
   if (start < earliest) {
     start = earliest;
   }
+
   return [start, end];
 }
 
@@ -174,6 +171,40 @@ export function getLatestRange(offset: number) {
   return [start, end, 'sliding-window'] as const;
 }
 
+export function getNextRange(offset: number) {
+  const start = monthUtils.currentMonth();
+  const end = monthUtils.addMonths(start, offset);
+
+  return [start, end, 'static'] as const;
+}
+
+export function getFullFutureRange(latestMonth?: string) {
+  const start = monthUtils.currentMonth();
+  const defaultEnd = monthUtils.addMonths(start, 24);
+  const end =
+    latestMonth && monthUtils.isAfter(latestMonth, start)
+      ? latestMonth
+      : defaultEnd;
+
+  return [start, end, 'static'] as const;
+}
+
+// For month-granular consumers (e.g. formula queries): collapse day-shaped
+// bounds so a live range keeps sliding by whole months rather than days.
+export function asMonthSlidingTimeFrame(
+  timeFrame: Partial<TimeFrame>,
+): Partial<TimeFrame> {
+  const { start, end, mode } = timeFrame;
+  if (mode !== 'sliding-window' || !start || !end) {
+    return timeFrame;
+  }
+  return {
+    ...timeFrame,
+    start: monthUtils.getMonth(start),
+    end: monthUtils.getMonth(end),
+  };
+}
+
 export function calculateTimeRange(
   timeFrame?: Partial<TimeFrame>,
   defaultTimeFrame?: TimeFrame,
@@ -200,6 +231,20 @@ export function calculateTimeRange(
     return getFullRange(start, fullEnd);
   }
   if (mode === 'sliding-window') {
+    // Day-shaped ranges slide by days: same width, ending today.
+    if (
+      monthUtils.isValidYearMonthDay(start) &&
+      monthUtils.isValidYearMonthDay(end)
+    ) {
+      const dayOffset = monthUtils.differenceInCalendarDays(end, start);
+      const today = monthUtils.currentDay();
+      return [
+        monthUtils.subDays(today, Math.max(dayOffset, 0)),
+        today,
+        'sliding-window',
+      ] as const;
+    }
+
     const offset = monthUtils.differenceInCalendarMonths(end, start);
 
     if (start > end) {
@@ -211,6 +256,10 @@ export function calculateTimeRange(
     }
 
     return getLatestRange(offset);
+  }
+  if (mode === 'lastMonth') {
+    const lastMonth = monthUtils.subMonths(monthUtils.currentMonth(), 1);
+    return [lastMonth, lastMonth, 'lastMonth'] as const;
   }
   if (mode === 'lastYear') {
     return [
@@ -233,6 +282,22 @@ export function calculateTimeRange(
       'priorYearToDate',
     ] as const;
   }
+  if (mode === 'currentQuarter') {
+    const currentMonth = monthUtils.currentMonth();
+    return [
+      monthUtils.getQuarterStart(currentMonth),
+      monthUtils.getQuarterEnd(currentMonth),
+      'currentQuarter',
+    ] as const;
+  }
+  if (mode === 'previousQuarter') {
+    const prevQuarterMonth = monthUtils.prevQuarter(monthUtils.currentMonth());
+    return [
+      monthUtils.getQuarterStart(prevQuarterMonth),
+      monthUtils.getQuarterEnd(prevQuarterMonth),
+      'previousQuarter',
+    ] as const;
+  }
 
   return [start, end, 'static'] as const;
 }
@@ -249,7 +314,12 @@ export function calculateSpendingReportTimeRange({
   mode?: 'budget' | 'average' | 'single-month';
 }): [string, string] {
   if (['budget', 'average'].includes(mode) && isLive) {
-    return [monthUtils.currentMonth(), monthUtils.currentMonth()];
+    const month = compare ?? monthUtils.currentMonth();
+    return [month, month];
+  }
+
+  if (mode === 'single-month' && isLive && compare) {
+    return [compare, compareTo ?? monthUtils.subMonths(compare, 1)];
   }
 
   const [start, end] = calculateTimeRange(
