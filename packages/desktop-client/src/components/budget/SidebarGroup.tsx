@@ -7,23 +7,21 @@ import { Button } from '@actual-app/components/button';
 import { SvgAdd, SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { SvgCheveronDown } from '@actual-app/components/icons/v1';
 import { Menu } from '@actual-app/components/menu';
-import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import { css, cx } from '@emotion/css';
-
 import type {
   CategoryEntity,
   CategoryGroupEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+import { css, cx } from '@emotion/css';
 
-import { NotesButton } from '@desktop-client/components/NotesButton';
-import { InputCell } from '@desktop-client/components/table';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useFeatureFlag } from '@desktop-client/hooks/useFeatureFlag';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { NotesButton } from '#components/NotesButton';
+import { InputCell } from '#components/table';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { useGlobalPref } from '#hooks/useGlobalPref';
 
 type SidebarGroupProps = {
   group: CategoryGroupEntity;
@@ -37,6 +35,10 @@ type SidebarGroupProps = {
   onDelete?: (id: CategoryGroupEntity['id']) => void;
   onApplyBudgetTemplatesInGroup?: (
     categories: Array<CategoryEntity['id']>,
+  ) => void;
+  onSortCategories?: (
+    groupId: CategoryGroupEntity['id'],
+    direction: 'asc' | 'desc',
   ) => void;
   onShowNewCategory?: (groupId: CategoryGroupEntity['id']) => void;
   onHideNewGroup?: () => void;
@@ -54,6 +56,7 @@ export function SidebarGroup({
   onSave,
   onDelete,
   onApplyBudgetTemplatesInGroup,
+  onSortCategories,
   onShowNewCategory,
   onHideNewGroup,
   onToggleCollapse,
@@ -64,9 +67,50 @@ export function SidebarGroup({
   const categoryExpandedState = categoryExpandedStatePref ?? 0;
 
   const temporary = group.id === 'new';
-  const { setMenuOpen, menuOpen, handleContextMenu, resetPosition, position } =
-    useContextMenu();
+  const canSortCategories =
+    !!onSortCategories && (group.categories?.length ?? 0) > 1;
   const triggerRef = useRef(null);
+  const { handleContextMenu } = useContextMenu({
+    triggerRef,
+    items: [
+      onEdit && {
+        name: 'rename',
+        text: t('Rename'),
+        onClick: () => onEdit(group.id),
+      },
+      onSave && {
+        name: 'toggle-visibility',
+        text: group.hidden ? t('Show') : t('Hide'),
+        onClick: () => onSave({ ...group, hidden: !group.hidden }),
+        hidden: group.is_income,
+      },
+      onDelete && {
+        name: 'delete',
+        text: t('Delete'),
+        onClick: () => onDelete(group.id),
+      },
+      canSortCategories && Menu.line,
+      canSortCategories && {
+        name: 'sort-asc',
+        text: t('Sort A to Z'),
+        onClick: () => onSortCategories(group.id, 'asc'),
+      },
+      canSortCategories && {
+        name: 'sort-desc',
+        text: t('Sort Z to A'),
+        onClick: () => onSortCategories(group.id, 'desc'),
+      },
+      isGoalTemplatesEnabled &&
+        onApplyBudgetTemplatesInGroup && {
+          name: 'apply-multiple-category-template',
+          text: t('Overwrite with templates'),
+          onClick: () =>
+            onApplyBudgetTemplatesInGroup(
+              group.categories.filter(c => !c.hidden).map(c => c.id),
+            ),
+        },
+    ],
+  });
 
   const displayed = (
     <View
@@ -81,7 +125,6 @@ export function SidebarGroup({
       onClick={() => {
         onToggleCollapse(group.id);
       }}
-      onContextMenu={handleContextMenu}
     >
       {!dragPreview && (
         <SvgExpandArrow
@@ -113,57 +156,11 @@ export function SidebarGroup({
             <Button
               variant="bare"
               className="hover-visible"
-              onPress={() => {
-                resetPosition();
-                setMenuOpen(true);
-              }}
               style={{ padding: 3 }}
+              onPress={handleContextMenu}
             >
               <SvgCheveronDown width={14} height={14} />
             </Button>
-
-            <Popover
-              triggerRef={triggerRef}
-              placement="bottom start"
-              isOpen={menuOpen}
-              onOpenChange={() => setMenuOpen(false)}
-              style={{ width: 200, margin: 1 }}
-              isNonModal
-              {...position}
-            >
-              <Menu
-                onMenuSelect={type => {
-                  if (type === 'rename') {
-                    onEdit(group.id);
-                  } else if (type === 'delete') {
-                    onDelete(group.id);
-                  } else if (type === 'toggle-visibility') {
-                    onSave({ ...group, hidden: !group.hidden });
-                  } else if (type === 'apply-multiple-category-template') {
-                    onApplyBudgetTemplatesInGroup?.(
-                      group.categories.filter(c => !c.hidden).map(c => c.id),
-                    );
-                  }
-                  setMenuOpen(false);
-                }}
-                items={[
-                  { name: 'rename', text: t('Rename') },
-                  !group.is_income && {
-                    name: 'toggle-visibility',
-                    text: group.hidden ? t('Show') : t('Hide'),
-                  },
-                  onDelete && { name: 'delete', text: t('Delete') },
-                  ...(isGoalTemplatesEnabled
-                    ? [
-                        {
-                          name: 'apply-multiple-category-template',
-                          text: t('Overwrite with templates'),
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </Popover>
           </View>
           <View style={{ flex: 1 }} />
           <View
@@ -191,11 +188,7 @@ export function SidebarGroup({
               </Button>
             </Tooltip>
 
-            <NotesButton
-              id={group.id}
-              style={dragPreview && { color: 'currentColor' }}
-              defaultColor={theme.pageTextLight}
-            />
+            <NotesButton id={group.id} defaultColor={theme.pageTextLight} />
           </View>
         </>
       )}

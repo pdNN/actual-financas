@@ -2,11 +2,14 @@
 import SQL from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 
-import { readFile, removeFile } from '../fs';
-import { logger } from '../log';
+import { getDataDir, readFile, removeFile } from '#platform/server/fs';
+import { logger } from '#platform/server/log';
 
 import { normalise } from './normalise';
+import type { SqlParam } from './types';
 import { unicodeLike } from './unicodeLike';
+
+export type { SqlParam } from './types';
 
 function verifyParamTypes(sql, arr) {
   arr.forEach(val => {
@@ -21,6 +24,13 @@ export async function init() {
   // No need to initialise on electron
 }
 
+// Parity with the browser sqlite backend (which instantiates sql.js from an
+// embedded wasm binary). better-sqlite3 has no wasm, so this is a no-op; it
+// exists so callers can reference `setWasmBinary` regardless of platform.
+export function setWasmBinary(_binary: ArrayBuffer | Uint8Array) {
+  // no-op on native sqlite
+}
+
 export function prepare(db, sql) {
   return db.prepare(sql);
 }
@@ -28,7 +38,7 @@ export function prepare(db, sql) {
 export function runQuery(
   db: SQL.Database,
   sql: string | SQL.Statement,
-  params: (string | number)[] = [],
+  params: SqlParam[] = [],
   fetchAll = false,
 ) {
   if (params) {
@@ -100,7 +110,7 @@ function regexp(regex: string, text: string | null) {
   return new RegExp(regex).test(text || '') ? 1 : 0;
 }
 
-export function openDatabase(pathOrBuffer: string | Buffer) {
+export function openDatabase(pathOrBuffer: string | Buffer): SQL.Database {
   const db = new SQL(pathOrBuffer);
   // Define Unicode-aware LOWER, UPPER, and LIKE implementation.
   // This is necessary because better-sqlite3 uses SQLite build without ICU support.
@@ -123,7 +133,7 @@ export function closeDatabase(db: SQL.Database) {
 export async function exportDatabase(db: SQL.Database) {
   // electron does not support better-sqlite serialize since v21
   // save to file and read in the raw data.
-  const name = `${process.env.ACTUAL_DATA_DIR}/backup-for-export-${uuidv4()}.db`;
+  const name = `${getDataDir()}/backup-for-export-${uuidv4()}.db`;
 
   await db.backup(name);
 

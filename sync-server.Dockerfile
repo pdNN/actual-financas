@@ -1,4 +1,4 @@
-FROM node:22-bookworm AS deps
+FROM node:24-bookworm AS deps
 
 # Install required packages
 RUN apt-get update && apt-get install -y openssl
@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Copy only the files needed for installing dependencies
 COPY .yarn ./.yarn
-COPY yarn.lock package.json .yarnrc.yml tsconfig.json ./
+COPY yarn.lock package.json .yarnrc.yml tsconfig.json lage.config.js ./
 COPY packages/api/package.json packages/api/package.json
 COPY packages/component-library/package.json packages/component-library/package.json
 COPY packages/crdt/package.json packages/crdt/package.json
@@ -31,6 +31,13 @@ COPY packages/ ./packages/
 # Increase memory limit for the build process to 8GB
 ENV NODE_OPTIONS=--max_old_space_size=8192
 
+# lage's task hasher invokes `git ls-tree HEAD` during initialization, so it
+# needs a git repo even when individual targets disable caching. .dockerignore
+# omits the real .git, so seed a throwaway repo with a single commit here.
+RUN git -c init.defaultBranch=master init -q \
+    && git -c user.email=build@docker -c user.name=docker-build add -A \
+    && git -c user.email=build@docker -c user.name=docker-build commit -qm build
+
 RUN yarn build:server
 
 # Focus the workspaces in production mode (including @actual-app/web you just built)
@@ -43,7 +50,7 @@ RUN rm -rf ./node_modules/@actual-app/web ./node_modules/@actual-app/sync-server
 COPY ./packages/desktop-client/package.json ./node_modules/@actual-app/web/package.json
 RUN cp -r ./packages/desktop-client/build ./node_modules/@actual-app/web/build
 
-FROM node:22-bookworm-slim AS prod
+FROM node:24-bookworm-slim AS prod
 
 # Minimal runtime dependencies
 RUN apt-get update && apt-get install -y tini && apt-get clean -y && rm -rf /var/lib/apt/lists/*

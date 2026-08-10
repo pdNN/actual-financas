@@ -16,8 +16,8 @@ import { View } from './View';
 
 const MenuLine: unique symbol = Symbol('menu-line');
 const MenuLabel: unique symbol = Symbol('menu-label');
-Menu.line = MenuLine;
-Menu.label = MenuLabel;
+Menu.line = MenuLine as typeof MenuLine;
+Menu.label = MenuLabel as typeof MenuLabel;
 
 type KeybindingProps = {
   keyName: ReactNode;
@@ -148,6 +148,7 @@ export function Menu<const NameType = string>({
 
   return (
     <View
+      role="menu"
       className={className}
       style={{ outline: 'none', borderRadius: 4, overflow: 'hidden', ...style }}
       tabIndex={0}

@@ -1,3 +1,4 @@
+import type { ForecastSource } from './forecast';
 import type { CustomReportEntity } from './reports';
 import type { RuleConditionEntity } from './rule';
 
@@ -17,7 +18,9 @@ export type TimeFrame = {
     | 'lastMonth'
     | 'lastYear'
     | 'yearToDate'
-    | 'priorYearToDate';
+    | 'priorYearToDate'
+    | 'currentQuarter'
+    | 'previousQuarter';
 };
 
 type AbstractWidget<
@@ -57,6 +60,19 @@ export type CashFlowWidget = AbstractWidget<
     showBalance?: boolean;
   } | null
 >;
+
+export type SpendingAverageRange =
+  | {
+      mode: 'last-n-months';
+      months: 3 | 6 | 12;
+    }
+  | {
+      mode: 'year-to-date';
+    }
+  | {
+      mode: 'all-time';
+    };
+
 export type SpendingWidget = AbstractWidget<
   'spending-card',
   {
@@ -67,6 +83,7 @@ export type SpendingWidget = AbstractWidget<
     compareTo?: string;
     isLive?: boolean;
     mode?: 'single-month' | 'budget' | 'average';
+    averageRange?: SpendingAverageRange;
   } | null
 >;
 export type BudgetAnalysisWidget = AbstractWidget<
@@ -79,6 +96,8 @@ export type BudgetAnalysisWidget = AbstractWidget<
     interval?: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
     graphType?: 'Line' | 'Bar';
     showBalance?: boolean;
+    balanceOnly?: boolean;
+    showHiddenCategories?: boolean;
   } | null
 >;
 export type CustomReportWidget = AbstractWidget<
@@ -105,6 +124,149 @@ export type MarkdownWidget = AbstractWidget<
   { content: string; text_align?: 'left' | 'right' | 'center' }
 >;
 
+export type MonteCarloAllocationPreset =
+  | 'equity-100'
+  | 'equity-80'
+  | 'equity-60'
+  | 'equity-40'
+  | 'cash'
+  | 'custom';
+
+export type MonteCarloWithdrawalStrategy =
+  | 'proportional'
+  | 'sequential'
+  | 'best-performer'
+  | 'target-mix';
+
+export type MonteCarloReturnModel =
+  | 'normal'
+  | 'historical-bootstrap'
+  | 'historical-sequence';
+
+export type MonteCarloWithdrawalRuleType =
+  | 'none'
+  | 'guardrails'
+  | 'ratcheting'
+  | 'floor-ceiling'
+  | 'boundaries';
+
+// Parameters for all rule types are kept side by side so switching between
+// rules in the UI preserves each rule's settings
+export type MonteCarloWithdrawalRuleMeta = {
+  type: MonteCarloWithdrawalRuleType;
+  // Guardrails (Guyton-Klinger)
+  prosperityTriggerPct?: number; // rate fell this fraction below initial
+  prosperityIncreasePct?: number;
+  preservationTriggerPct?: number; // rate rose this fraction above initial
+  preservationCutPct?: number;
+  // Ratcheting (Kitces)
+  balanceThresholdMultiple?: number; // e.g. 1.5x initial balance
+  consecutiveYears?: number;
+  ratchetIncreasePct?: number;
+  // Floor & ceiling (Bengen)
+  floorPct?: number; // fraction below the inflation-adjusted initial
+  ceilingPct?: number; // fraction above the inflation-adjusted initial
+  // Boundaries
+  upperRateThreshold?: number; // absolute withdrawal rate, e.g. 0.06
+  upperCutPct?: number;
+  lowerRateThreshold?: number;
+  lowerIncreasePct?: number;
+};
+
+export type MonteCarloSpendingPhaseMeta = {
+  id: string;
+  name?: string;
+  /**
+   * Age the phase begins (inclusive). Null/absent = starts immediately;
+   * only meaningful on the first phase.
+   */
+  fromAge?: number | null;
+  /** Yearly spending in minor units, in today's money */
+  annualWithdrawal?: number;
+};
+
+export type MonteCarloPotMeta = {
+  id: string;
+  name?: string;
+  startingBalance?: number; // integer minor units (cents)
+  allocationPreset?: MonteCarloAllocationPreset;
+  expectedReturnMean?: number; // decimal fraction (0.06 = 6%)
+  returnStdDev?: number; // decimal fraction
+  /** Age from which the pot can fund withdrawals; null = immediately */
+  accessAge?: number | null;
+  /**
+   * Account whose live balance supplies the starting balance;
+   * null/undefined = manually entered balance
+   */
+  accountId?: string | null;
+  /**
+   * Flat tax model: effective tax rate on withdrawals from this pot as a
+   * decimal fraction (0.15 = 15%)
+   */
+  withdrawalTaxRate?: number;
+  /**
+   * Bands tax model: share of a withdrawal that counts as taxable income
+   * (pension ~0.75, tax-free account 0), as a decimal fraction
+   */
+  taxableFraction?: number;
+  /** Fixed yearly fee in minor units, today's money */
+  annualFeeFixed?: number;
+  /** Whether the fixed fee rises with inflation */
+  feeAdjustsWithInflation?: boolean;
+  /** Yearly fee as a fraction of the end-of-year balance (0.0022 = 0.22%) */
+  annualFeeRate?: number;
+};
+
+export type MonteCarloTaxModel = 'flat' | 'bands';
+
+/** One tax band: income from `from` upward taxed at `rate` */
+export type MonteCarloTaxBandMeta = {
+  id: string;
+  /** Annual taxable income threshold in minor units, today's money */
+  from?: number;
+  /** Decimal fraction (0.2 = 20%) */
+  rate?: number;
+};
+
+export type MonteCarloWidget = AbstractWidget<
+  'monte-carlo-card',
+  {
+    name?: string;
+    pots?: MonteCarloPotMeta[];
+    withdrawalStrategy?: MonteCarloWithdrawalStrategy;
+    returnModel?: MonteCarloReturnModel;
+    withdrawalRule?: MonteCarloWithdrawalRuleMeta;
+    /** Minimum annual withdrawal in minor units; 0 or absent = no floor */
+    minimumWithdrawal?: number;
+    spendingPhases?: MonteCarloSpendingPhaseMeta[];
+    /** Mean yearly inflation as a decimal fraction; null = flat withdrawals */
+    inflationMean?: number | null;
+    /** Yearly inflation volatility as a decimal fraction; 0 = fixed rate */
+    inflationStdDev?: number;
+    /** How withdrawals are taxed; absent = 'flat' */
+    taxModel?: MonteCarloTaxModel;
+    /** Bands model: progressive tax bands over annual taxable income */
+    taxBands?: MonteCarloTaxBandMeta[];
+    currentAge?: number;
+    /** Age the pot must last to; the horizon is targetAge - currentAge */
+    targetAge?: number;
+    simulationCount?: number;
+  } | null
+>;
+
+export type AgeOfMoneyGranularity = 'daily' | 'weekly' | 'monthly';
+
+export type AgeOfMoneyWidget = AbstractWidget<
+  'age-of-money-card',
+  {
+    name?: string;
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    granularity?: AgeOfMoneyGranularity;
+  } | null
+>;
+
 type SpecializedWidget =
   | NetWorthWidget
   | CashFlowWidget
@@ -112,15 +274,18 @@ type SpecializedWidget =
   | BudgetAnalysisWidget
   | CrossoverWidget
   | MarkdownWidget
+  | MonteCarloWidget
   | SummaryWidget
   | CalendarWidget
-  | FormulaWidget;
+  | FormulaWidget
+  | SankeyWidget
+  | AgeOfMoneyWidget
+  | BalanceForecastWidget;
 export type DashboardWidgetEntity = SpecializedWidget | CustomReportWidget;
 export type NewDashboardWidgetEntity = Omit<
   DashboardWidgetEntity,
   'id' | 'tombstone' | 'dashboard_page_id'
 >;
-
 // Exported/imported (json) widget definition
 export type ExportImportCustomReportWidget = Omit<
   CustomReportWidget,
@@ -185,6 +350,7 @@ export type FormulaWidget = AbstractWidget<
     fontSize?: number;
     fontSizeMode?: 'dynamic' | 'static';
     staticFontSize?: number;
+    showTitle?: boolean;
     colorFormula?: string;
     queriesVersion?: number;
     queries?: Record<
@@ -195,5 +361,37 @@ export type FormulaWidget = AbstractWidget<
         timeFrame?: TimeFrame;
       }
     >;
+  } | null
+>;
+
+export type SankeyWidget = AbstractWidget<
+  'sankey-card',
+  {
+    name?: string;
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    mode?: 'budgeted' | 'spent';
+    topNcategories?: number;
+    categorySort?: 'per-group' | 'global' | 'budget-order';
+    showPercentages?: boolean;
+    groupAccounts?: boolean;
+    layerFrom?: string;
+    layerTo?: string;
+  } | null
+>;
+
+export type BalanceForecastWidget = AbstractWidget<
+  'balance-forecast-card',
+  {
+    name?: string;
+    startDate?: string;
+    endDate?: string;
+    accounts?: string[];
+    conditions?: RuleConditionEntity[];
+    conditionsOp?: 'and' | 'or';
+    timeFrame?: TimeFrame;
+    granularity?: 'Daily' | 'Monthly';
+    source?: ForecastSource;
   } | null
 >;

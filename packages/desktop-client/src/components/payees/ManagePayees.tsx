@@ -8,30 +8,25 @@ import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import memoizeOne from 'memoize-one';
+import { memoizeOne } from '@actual-app/core/shared/memoize';
+import { getNormalisedString } from '@actual-app/core/shared/normalisation';
+import { groupById } from '@actual-app/core/shared/util';
+import type { Diff } from '@actual-app/core/shared/util';
+import type { PayeeEntity } from '@actual-app/core/types/models';
 
-import { getNormalisedString } from 'loot-core/shared/normalisation';
-import { groupById } from 'loot-core/shared/util';
-import type { Diff } from 'loot-core/shared/util';
-import type { PayeeEntity } from 'loot-core/types/models';
-
-import { PayeeMenu } from './PayeeMenu';
-import { PayeeTable } from './PayeeTable';
-
-import { Search } from '@desktop-client/components/common/Search';
-import {
-  Cell,
-  SelectCell,
-  TableHeader,
-} from '@desktop-client/components/table';
+import { Search } from '#components/common/Search';
+import { Cell, SelectCell, TableHeader } from '#components/table';
 import {
   SelectedProvider,
   useSelected,
   useSelectedDispatch,
   useSelectedItems,
-} from '@desktop-client/hooks/useSelected';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+} from '#hooks/useSelected';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
+
+import { PayeeMenu } from './PayeeMenu';
+import { PayeeTable } from './PayeeTable';
 
 const getPayeesById = memoizeOne((payees: PayeeEntity[]) => groupById(payees));
 
@@ -91,7 +86,9 @@ export const ManagePayees = ({
     let filtered = payees;
     if (filter) {
       filtered = filtered.filter(p =>
-        getNormalisedString(p.name).includes(getNormalisedString(filter)),
+        getNormalisedString(
+          (p.transfer_acct ? t('Transfer: ') : '') + p.name,
+        ).includes(getNormalisedString(filter)),
       );
     }
     if (orphanedOnly) {
@@ -100,7 +97,7 @@ export const ManagePayees = ({
       );
     }
     return filtered;
-  }, [payees, filter, orphanedOnly, orphanedPayees]);
+  }, [payees, filter, orphanedOnly, orphanedPayees, t]);
 
   const selected = useSelected('payees', filteredPayees, initialSelectedIds);
 
@@ -191,9 +188,25 @@ export const ManagePayees = ({
 
   async function onMerge() {
     const ids = [...selected.items];
-    await props.onMerge(ids);
+    if (ids.length < 2) return;
 
-    selected.dispatch({ type: 'select-none' });
+    const targetPayeeId = ids[0];
+
+    dispatch(
+      pushModal({
+        modal: {
+          name: 'confirm-payees-merge',
+          options: {
+            payeeIds: ids.filter(id => id !== targetPayeeId),
+            targetPayeeId,
+            onConfirm: async () => {
+              await props.onMerge(ids);
+              selected.dispatch({ type: 'select-none' });
+            },
+          },
+        },
+      }),
+    );
   }
 
   const onChangeCategoryLearning = useCallback(() => {

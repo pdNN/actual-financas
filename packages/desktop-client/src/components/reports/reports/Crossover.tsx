@@ -14,45 +14,40 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-
-import { send } from 'loot-core/platform/client/connection';
-import * as monthUtils from 'loot-core/shared/months';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
 import type {
   CategoryEntity,
   CrossoverWidget,
   TimeFrame,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
 
-import { Link } from '@desktop-client/components/common/Link';
-import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
-import { FinancialText } from '@desktop-client/components/FinancialText';
-import { Checkbox } from '@desktop-client/components/forms';
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import {
-  MobilePageHeader,
-  Page,
-  PageHeader,
-} from '@desktop-client/components/Page';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { AccountSelector } from '@desktop-client/components/reports/AccountSelector';
-import { CategorySelector } from '@desktop-client/components/reports/CategorySelector';
-import { CrossoverGraph } from '@desktop-client/components/reports/graphs/CrossoverGraph';
-import { Header } from '@desktop-client/components/reports/Header';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { createCrossoverSpreadsheet } from '@desktop-client/components/reports/spreadsheets/crossover-spreadsheet';
-import type { CrossoverData } from '@desktop-client/components/reports/spreadsheets/crossover-spreadsheet';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useDashboardWidget } from '@desktop-client/hooks/useDashboardWidget';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import type { useSpreadsheet } from '@desktop-client/hooks/useSpreadsheet';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { useUpdateDashboardWidgetMutation } from '@desktop-client/reports/mutations';
+import { Link } from '#components/common/Link';
+import { EditablePageHeaderTitle } from '#components/EditablePageHeaderTitle';
+import { FinancialText } from '#components/FinancialText';
+import { Checkbox } from '#components/forms';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page, PageHeader } from '#components/Page';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { AccountSelector } from '#components/reports/AccountSelector';
+import { CategorySelector } from '#components/reports/CategorySelector';
+import { CrossoverGraph } from '#components/reports/graphs/CrossoverGraph';
+import { Header } from '#components/reports/Header';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { createCrossoverSpreadsheet } from '#components/reports/spreadsheets/crossover-spreadsheet';
+import type { CrossoverData } from '#components/reports/spreadsheets/crossover-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { useAccounts } from '#hooks/useAccounts';
+import { useCategories } from '#hooks/useCategories';
+import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
+import { useNavigate } from '#hooks/useNavigate';
+import type { useSpreadsheet } from '#hooks/useSpreadsheet';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
 
 export const defaultTimeFrame = {
   start: monthUtils.subMonths(monthUtils.currentMonth(), 120),
@@ -130,19 +125,21 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
 
   // initialize once when data is available
   useEffect(() => {
-    if (selectionsInitialized || accounts.length === 0 || isCategoriesLoading) {
+    if (selectionsInitialized || isCategoriesLoading) {
       return;
     }
 
-    const initialExpenseCategories = widget?.meta?.expenseCategoryIds?.length
-      ? categories.list.filter(c =>
-          widget.meta!.expenseCategoryIds!.includes(c.id),
-        )
-      : categories.list.filter(c => !c.is_income);
+    const initialExpenseCategories =
+      widget?.meta?.expenseCategoryIds !== undefined
+        ? categories.list.filter(c =>
+            widget.meta!.expenseCategoryIds!.includes(c.id),
+          )
+        : categories.list.filter(c => !c.is_income);
 
-    const initialIncomeAccountIds = widget?.meta?.incomeAccountIds?.length
-      ? widget.meta!.incomeAccountIds!
-      : accounts.map(a => a.id);
+    const initialIncomeAccountIds =
+      widget?.meta?.incomeAccountIds !== undefined
+        ? widget.meta!.incomeAccountIds!
+        : accounts.map(a => a.id);
 
     setSelectedExpenseCategories(initialExpenseCategories);
     setSelectedIncomeAccountIds(initialIncomeAccountIds);
@@ -371,18 +368,27 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
   );
 
   const data = useReport<CrossoverData>('crossover', params);
+  const [previousData, setPreviousData] = useState<CrossoverData | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      setPreviousData(data);
+    }
+  }, [data]);
+
+  const displayData = data ?? previousData;
 
   // Get the default estimated return from the spreadsheet data
-  const historicalReturn = data?.historicalReturn ?? null;
+  const historicalReturn = displayData?.historicalReturn ?? null;
 
   // Get years to retire from spreadsheet data
-  const yearsToRetire = data?.yearsToRetire ?? null;
+  const yearsToRetire = displayData?.yearsToRetire ?? null;
 
   // Get target monthly income from spreadsheet data
-  const targetMonthlyIncome = data?.targetMonthlyIncome ?? null;
+  const targetMonthlyIncome = displayData?.targetMonthlyIncome ?? null;
 
   // Get target nest egg from spreadsheet data
-  const targetNestEgg = data?.targetNestEgg ?? null;
+  const targetNestEgg = displayData?.targetNestEgg ?? null;
 
   const navigate = useNavigate();
   const { isNarrowWidth } = useResponsive();
@@ -413,14 +419,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
     });
   };
 
-  if (
-    !allMonths ||
-    !data ||
-    !start ||
-    !end ||
-    isCategoriesLoading ||
-    accounts.length === 0
-  ) {
+  if (!allMonths || !displayData || !start || !end || isCategoriesLoading) {
     return <LoadingIndicator />;
   }
 
@@ -455,7 +454,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
         start={start}
         end={end}
         mode={mode}
-        allMonths={allMonths || []}
+        allMonths={allMonths}
         earliestTransaction={earliestTransaction}
         latestTransaction={latestTransaction}
         onChangeDates={onChangeDates}
@@ -1123,7 +1122,7 @@ function CrossoverInner({ widget }: CrossoverInnerProps) {
               }}
             >
               <CrossoverGraph
-                graphData={data.graphData}
+                graphData={displayData.graphData}
                 style={{ height: '100%', flex: 1 }}
               />
             </View>

@@ -5,30 +5,26 @@ import { Block } from '@actual-app/components/block';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { BudgetAnalysisWidget } from '@actual-app/core/types/models';
 
-import * as monthUtils from 'loot-core/shared/months';
-import type { BudgetAnalysisWidget } from 'loot-core/types/models';
-
-import { FinancialText } from '@desktop-client/components/FinancialText';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { DateRange } from '@desktop-client/components/reports/DateRange';
-import { BudgetAnalysisGraph } from '@desktop-client/components/reports/graphs/BudgetAnalysisGraph';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { ReportCard } from '@desktop-client/components/reports/ReportCard';
-import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { createBudgetAnalysisSpreadsheet } from '@desktop-client/components/reports/spreadsheets/budget-analysis-spreadsheet';
-import { useDashboardWidgetCopyMenu } from '@desktop-client/components/reports/useDashboardWidgetCopyMenu';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useFormat } from '@desktop-client/hooks/useFormat';
+import { FinancialText } from '#components/FinancialText';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { DateRange } from '#components/reports/DateRange';
+import { BudgetAnalysisGraph } from '#components/reports/graphs/BudgetAnalysisGraph';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { ReportCard } from '#components/reports/ReportCard';
+import { ReportCardName } from '#components/reports/ReportCardName';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { createBudgetAnalysisSpreadsheet } from '#components/reports/spreadsheets/budget-analysis-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { useFormat } from '#hooks/useFormat';
 
 type BudgetAnalysisCardProps = {
   widgetId: string;
   isEditing?: boolean;
   meta?: BudgetAnalysisWidget['meta'];
   onMetaChange: (newMeta: BudgetAnalysisWidget['meta']) => void;
-  onRemove: () => void;
-  onCopy: (targetDashboardId: string) => void;
 };
 
 export function BudgetAnalysisCard({
@@ -36,17 +32,12 @@ export function BudgetAnalysisCard({
   isEditing,
   meta = {},
   onMetaChange,
-  onRemove,
-  onCopy,
 }: BudgetAnalysisCardProps) {
   const { t } = useTranslation();
   const format = useFormat();
 
   const [isCardHovered, setIsCardHovered] = useState(false);
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
-
-  const { menuItems: copyMenuItems, handleMenuSelect: handleCopyMenuSelect } =
-    useDashboardWidgetCopyMenu(onCopy);
 
   const timeFrame = meta?.timeFrame ?? {
     start: monthUtils.subMonths(monthUtils.currentMonth(), 5),
@@ -66,8 +57,15 @@ export function BudgetAnalysisCard({
       conditionsOp: meta?.conditionsOp,
       startDate,
       endDate,
+      showHiddenCategories: meta?.showHiddenCategories ?? false,
     });
-  }, [meta?.conditions, meta?.conditionsOp, startDate, endDate]);
+  }, [
+    meta?.conditions,
+    meta?.conditionsOp,
+    meta?.showHiddenCategories,
+    startDate,
+    endDate,
+  ]);
 
   const data = useReport('default', getGraphData);
 
@@ -78,33 +76,11 @@ export function BudgetAnalysisCard({
   const balance = latestInterval?.balance ?? 0;
   return (
     <ReportCard
+      widgetId={widgetId}
       isEditing={isEditing}
       disableClick={nameMenuOpen}
       to={`/reports/budget-analysis/${widgetId}`}
-      menuItems={[
-        {
-          name: 'rename',
-          text: t('Rename'),
-        },
-        {
-          name: 'remove',
-          text: t('Remove'),
-        },
-        ...copyMenuItems,
-      ]}
-      onMenuSelect={item => {
-        if (handleCopyMenuSelect(item)) return;
-        switch (item) {
-          case 'rename':
-            setNameMenuOpen(true);
-            break;
-          case 'remove':
-            onRemove();
-            break;
-          default:
-            throw new Error(`Unrecognized selection: ${item}`);
-        }
-      }}
+      onRename={() => setNameMenuOpen(true)}
     >
       <View
         style={{ flex: 1 }}
@@ -155,6 +131,7 @@ export function BudgetAnalysisCard({
             data={data}
             graphType={meta?.graphType || 'Bar'}
             showBalance={meta?.showBalance ?? true}
+            balanceOnly={meta?.balanceOnly ?? false}
           />
         ) : (
           <LoadingIndicator />

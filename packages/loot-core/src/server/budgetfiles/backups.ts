@@ -1,14 +1,15 @@
+import type { Database } from '@jlongster/sql.js';
 // @ts-strict-ignore
 import * as dateFns from 'date-fns';
-import { v4 as uuidv4 } from 'uuid';
 
-import * as connection from '../../platform/server/connection';
-import * as fs from '../../platform/server/fs';
-import { logger } from '../../platform/server/log';
-import * as sqlite from '../../platform/server/sqlite';
-import * as monthUtils from '../../shared/months';
-import * as cloudStorage from '../cloud-storage';
-import * as prefs from '../prefs';
+import * as connection from '#platform/server/connection';
+import * as fs from '#platform/server/fs';
+import { logger } from '#platform/server/log';
+import * as sqlite from '#platform/server/sqlite';
+import * as cloudStorage from '#server/cloud-storage';
+import * as prefs from '#server/prefs';
+import { safeUnzip, safeZip } from '#server/util/zip';
+import * as monthUtils from '#shared/months';
 
 // A special backup that represents the latest version of the db that
 // can be reverted to after loading a backup
@@ -26,7 +27,7 @@ async function getBackups(id: string): Promise<BackupWithDate[]> {
   let paths = [];
   if (await fs.exists(backupDir)) {
     paths = await fs.listDir(backupDir);
-    paths = paths.filter(file => file.match(/\.sqlite$/));
+    paths = paths.filter(file => file.match(/\.zip$/));
   }
 
   const backups = await Promise.all(
@@ -112,20 +113,48 @@ export async function makeBackup(id: string) {
     await fs.removeFile(fs.join(fs.getBudgetDir(id), LATEST_BACKUP_FILENAME));
   }
 
-  const backupId = `${uuidv4()}.sqlite`;
+  const backupId = `${dateFns.format(new Date(), 'yyyy-MM-dd_HH-mm-ss')}.zip`;
   const backupPath = fs.join(budgetDir, 'backups', backupId);
 
   if (!(await fs.exists(fs.join(budgetDir, 'backups')))) {
     await fs.mkdir(fs.join(budgetDir, 'backups'));
   }
 
-  await fs.copyFile(fs.join(budgetDir, 'db.sqlite'), backupPath);
+  // Copy db to a temp path so we can clean CRDT messages before zipping
+  const tempDbPath = fs.join(
+    budgetDir,
+    'backups',
+    `db.${Date.now()}.sqlite.tmp`,
+  );
 
-  // Remove all the messages from the backup
-  const db = await sqlite.openDatabase(backupPath);
-  sqlite.runQuery(db, 'DELETE FROM messages_crdt');
-  sqlite.runQuery(db, 'DELETE FROM messages_clock');
-  sqlite.closeDatabase(db);
+  await fs.copyFile(fs.join(budgetDir, 'db.sqlite'), tempDbPath);
+
+  let db: Database | undefined;
+
+  try {
+    // Remove all the messages from the backup
+    db = await sqlite.openDatabase(tempDbPath);
+    sqlite.runQuery(db, 'DELETE FROM messages_crdt');
+    sqlite.runQuery(db, 'DELETE FROM messages_clock');
+    // Zip up the cleaned db and metadata into a single backup file
+    const dbContent = await fs.readFile(tempDbPath, 'binary');
+    const metaContent = await fs.readFile(
+      fs.join(budgetDir, 'metadata.json'),
+      'binary',
+    );
+    const zipped = safeZip({
+      'db.sqlite': dbContent,
+      'metadata.json': metaContent,
+    });
+    await fs.writeFile(backupPath, zipped);
+  } finally {
+    if (db) {
+      sqlite.closeDatabase(db);
+    }
+    if (await fs.exists(tempDbPath)) {
+      await fs.removeFile(tempDbPath);
+    }
+  }
 
   const toRemove = await updateBackups(await getBackups(id));
   for (const id of toRemove) {
@@ -201,9 +230,26 @@ export async function loadBackup(id: string, backupId: string) {
 
     prefs.unloadPrefs();
 
-    await fs.copyFile(
+    const zipContent = await fs.readFile(
       fs.join(budgetDir, 'backups', backupId),
-      fs.join(budgetDir, 'db.sqlite'),
+      'binary',
+    );
+
+    let entries: Record<string, Uint8Array>;
+    try {
+      entries = safeUnzip(zipContent);
+    } catch (e) {
+      logger.log(e);
+      throw new Error('Error reading backup zip file');
+    }
+    if (!entries['db.sqlite'] || !entries['metadata.json']) {
+      throw new Error('Backup zip file is missing db.sqlite or metadata.json');
+    }
+
+    await fs.writeFile(fs.join(budgetDir, 'db.sqlite'), entries['db.sqlite']);
+    await fs.writeFile(
+      fs.join(budgetDir, 'metadata.json'),
+      entries['metadata.json'],
     );
   }
 }

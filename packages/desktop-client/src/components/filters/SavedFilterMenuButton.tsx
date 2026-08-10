@@ -6,12 +6,11 @@ import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
-
-import { send, sendCatch } from 'loot-core/platform/client/connection';
+import { send, sendCatch } from '@actual-app/core/platform/client/connection';
 import type {
   RuleConditionEntity,
   TransactionFilterEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
 
 import { FilterMenu } from './FilterMenu';
 import { NameFilter } from './NameFilter';
@@ -81,7 +80,7 @@ export function SavedFilterMenuButton({
         });
 
         if (response.error) {
-          setErr(response.error.message);
+          setErr(response.error.message ?? null);
           setNameOpen(true);
           return;
         }
@@ -127,7 +126,7 @@ export function SavedFilterMenuButton({
       });
 
       if (response.error) {
-        setErr(response.error.message);
+        setErr(response.error.message ?? null);
         setNameOpen(true);
         return;
       }
@@ -153,7 +152,7 @@ export function SavedFilterMenuButton({
     });
 
     if (response.error) {
-      setErr(response.error.message);
+      setErr(response.error.message ?? null);
       setNameOpen(true);
       return;
     }

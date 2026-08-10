@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { q } from 'loot-core/shared/query';
-import type { Query } from 'loot-core/shared/query';
+import { q } from '@actual-app/core/shared/query';
+import type { Query } from '@actual-app/core/shared/query';
 import {
   getHasTransactionsQuery,
   getStatus,
-  getStatusLabel,
-} from 'loot-core/shared/schedules';
-import type { ScheduleStatuses } from 'loot-core/shared/schedules';
+} from '@actual-app/core/shared/schedules';
+import type { ScheduleStatuses } from '@actual-app/core/shared/schedules';
 import type {
   AccountEntity,
   ScheduleEntity,
   TransactionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+
+import { accountFilter } from '#queries';
+import { liveQuery } from '#queries/liveQuery';
+import type { LiveQuery } from '#queries/liveQuery';
+import { getStatusLabel } from '#util/schedule';
 
 import { useSyncedPref } from './useSyncedPref';
-
-import { accountFilter } from '@desktop-client/queries';
-import { liveQuery } from '@desktop-client/queries/liveQuery';
-import type { LiveQuery } from '@desktop-client/queries/liveQuery';
 
 export type ScheduleStatusLabelType = ReturnType<typeof getStatusLabel>;
 export type ScheduleStatusLabels = Map<
@@ -42,7 +42,7 @@ function loadStatuses(
             s.next_date,
             s.completed,
             hasTrans.has(s.id),
-            upcomingLength,
+            s.custom_upcoming_length ?? upcomingLength,
           ),
         ]),
       ) as ScheduleStatuses;
@@ -106,6 +106,10 @@ export function useSchedules({
 
     scheduleQueryRef.current = liveQuery<ScheduleEntity>(query, {
       onData: async schedules => {
+        // `onData` fires again whenever the schedules change, so tear down the
+        // previous status query first. Otherwise each refresh orphans a live
+        // query that stays subscribed to sync events and keeps re-running.
+        statusQueryRef.current?.unsubscribe();
         statusQueryRef.current = loadStatuses(
           schedules,
           (statuses: ScheduleStatuses) => {

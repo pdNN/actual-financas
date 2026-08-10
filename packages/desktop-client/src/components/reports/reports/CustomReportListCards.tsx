@@ -7,45 +7,41 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { CustomReportEntity } from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/connection';
-import * as monthUtils from 'loot-core/shared/months';
-import type { CustomReportEntity } from 'loot-core/types/models';
+import { DateRange } from '#components/reports/DateRange';
+import { ReportCard } from '#components/reports/ReportCard';
+import { ReportCardName } from '#components/reports/ReportCardName';
+import { calculateHasWarning } from '#components/reports/util';
+import { useAccounts } from '#hooks/useAccounts';
+import { useCategories } from '#hooks/useCategories';
+import { usePayees } from '#hooks/usePayees';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { useUpdateReportMutation } from '#reports/mutations';
 
 import { GetCardData } from './GetCardData';
 import { MissingReportCard } from './MissingReportCard';
 
-import { DateRange } from '@desktop-client/components/reports/DateRange';
-import { ReportCard } from '@desktop-client/components/reports/ReportCard';
-import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
-import { useDashboardWidgetCopyMenu } from '@desktop-client/components/reports/useDashboardWidgetCopyMenu';
-import { calculateHasWarning } from '@desktop-client/components/reports/util';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { usePayees } from '@desktop-client/hooks/usePayees';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { useUpdateReportMutation } from '@desktop-client/reports/mutations';
-
 type CustomReportListCardsProps = {
+  widgetId: string;
   isEditing?: boolean;
   report?: CustomReportEntity;
-  onRemove: () => void;
-  onCopy: (targetDashboardId: string) => void;
 };
 
 export function CustomReportListCards({
+  widgetId,
   isEditing,
   report,
-  onRemove,
-  onCopy,
 }: CustomReportListCardsProps) {
   // It's possible for a dashboard to reference a non-existing
   // custom report
   if (!report) {
     return (
-      <MissingReportCard isEditing={isEditing} onRemove={onRemove}>
+      <MissingReportCard widgetId={widgetId} isEditing={isEditing}>
         <Trans>This custom report has been deleted.</Trans>
       </MissingReportCard>
     );
@@ -53,20 +49,18 @@ export function CustomReportListCards({
 
   return (
     <CustomReportListCardsInner
+      widgetId={widgetId}
       isEditing={isEditing}
       report={report}
-      onRemove={onRemove}
-      onCopy={onCopy}
     />
   );
 }
 
 function CustomReportListCardsInner({
+  widgetId,
   isEditing,
   report,
-  onRemove,
-  onCopy,
-}: Omit<CustomReportListCardsProps, 'report'> & {
+}: CustomReportListCardsProps & {
   report: CustomReportEntity;
 }) {
   const { t } = useTranslation();
@@ -76,9 +70,6 @@ function CustomReportListCardsInner({
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
   const [earliestTransaction, setEarliestTransaction] = useState('');
   const [latestTransaction, setLatestTransaction] = useState('');
-
-  const { menuItems: copyMenuItems, handleMenuSelect: handleCopyMenuSelect } =
-    useDashboardWidgetCopyMenu(onCopy);
 
   const { data: payees = [] } = usePayees();
   const { data: accounts = [] } = useAccounts();
@@ -140,33 +131,11 @@ function CustomReportListCardsInner({
 
   return (
     <ReportCard
+      widgetId={widgetId}
       isEditing={isEditing}
       disableClick={nameMenuOpen}
       to={`/reports/custom/${report.id}`}
-      menuItems={[
-        {
-          name: 'rename',
-          text: t('Rename'),
-        },
-        {
-          name: 'remove',
-          text: t('Remove'),
-        },
-        ...copyMenuItems,
-      ]}
-      onMenuSelect={item => {
-        if (handleCopyMenuSelect(item)) return;
-        switch (item) {
-          case 'remove':
-            onRemove();
-            break;
-          case 'rename':
-            setNameMenuOpen(true);
-            break;
-          default:
-            throw new Error(`Unrecognized menu option: ${item}`);
-        }
-      }}
+      onRename={() => setNameMenuOpen(true)}
     >
       <View style={{ flex: 1, padding: 10 }}>
         <View

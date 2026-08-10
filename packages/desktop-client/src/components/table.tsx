@@ -35,27 +35,28 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { FixedSizeList } from './FixedSizeList';
-import {
-  ConditionalPrivacyFilter,
-  mergeConditionalPrivacyFilterProps,
-} from './PrivacyFilter';
-
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import type { FormatType } from '@desktop-client/hooks/useFormat';
-import { useModalState } from '@desktop-client/hooks/useModalState';
+import { useFormat } from '#hooks/useFormat';
+import type { FormatType } from '#hooks/useFormat';
+import { useMergedRefs } from '#hooks/useMergedRefs';
+import { useModalState } from '#hooks/useModalState';
 import {
   AvoidRefocusScrollProvider,
   useProperFocus,
-} from '@desktop-client/hooks/useProperFocus';
-import { useSelectedItems } from '@desktop-client/hooks/useSelected';
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
+} from '#hooks/useProperFocus';
+import { useSelectedItems } from '#hooks/useSelected';
+import { useSheetValue } from '#hooks/useSheetValue';
 import type {
   Binding,
   SheetFields,
   SheetNames,
   Spreadsheets,
-} from '@desktop-client/spreadsheet';
+} from '#spreadsheet';
+
+import { FixedSizeList } from './FixedSizeList';
+import {
+  ConditionalPrivacyFilter,
+  mergeConditionalPrivacyFilterProps,
+} from './PrivacyFilter';
 
 export const ROW_HEIGHT = 32;
 
@@ -267,11 +268,13 @@ export function Cell({
     ],
   );
 
+  const mergedRef = useMergedRefs(viewRef, viewProps.ref, viewProps.innerRef);
+
   return (
     <View
-      innerRef={viewRef}
       style={{ ...widthStyle, ...cellStyle, ...style }}
       {...viewProps}
+      innerRef={mergedRef}
       data-testid={name}
     >
       {conditionalPrivacyFilter}
@@ -1055,7 +1058,10 @@ export const Table = forwardRef(
       }
 
       if (scrollContainer.current && saveScrollWidth) {
-        setTimeout(saveScrollDelayed, 200);
+        const timeout = setTimeout(saveScrollDelayed, 200);
+        // Without this, the timer can fire after unmount and call setState
+        // on a dead component (crashes test teardown)
+        return () => clearTimeout(timeout);
       }
     });
 
@@ -1367,6 +1373,7 @@ export function useTableNavigator<T extends TableItem>(
           case 'ArrowUp':
           case 'k':
             if (e.target.tagName !== 'INPUT') {
+              e.preventDefault();
               onMove('up');
             }
             break;
@@ -1374,6 +1381,7 @@ export function useTableNavigator<T extends TableItem>(
           case 'ArrowDown':
           case 'j':
             if (e.target.tagName !== 'INPUT') {
+              e.preventDefault();
               onMove('down');
             }
             break;

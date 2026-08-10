@@ -1,29 +1,29 @@
 // @ts-strict-ignore
 import { getClock } from '@actual-app/crdt';
 
-import * as connection from '../platform/server/connection';
-import { logger } from '../platform/server/log';
+import * as connection from '#platform/server/connection';
+import { logger } from '#platform/server/log';
 import {
   getBankSyncError,
   getDownloadError,
   getSyncError,
   getTestKeyError,
-} from '../shared/errors';
-import * as monthUtils from '../shared/months';
-import { q } from '../shared/query';
+} from '#shared/errors';
+import * as monthUtils from '#shared/months';
+import { q } from '#shared/query';
 import {
   deleteTransaction,
   ungroupTransactions,
   updateTransaction,
-} from '../shared/transactions';
-import { integerToAmount } from '../shared/util';
-import type { Handlers } from '../types/handlers';
+} from '#shared/transactions';
+import { integerToAmount } from '#shared/util';
+import type { Handlers } from '#types/handlers';
 import type {
   AccountEntity,
   CategoryGroupEntity,
   ScheduleEntity,
-} from '../types/models';
-import type { ServerHandlers } from '../types/server-handlers';
+} from '#types/models';
+import type { ServerHandlers } from '#types/server-handlers';
 
 import { addTransactions } from './accounts/sync';
 import {
@@ -38,10 +38,11 @@ import {
 } from './api-models';
 import type { AmountOPType, APIScheduleEntity } from './api-models';
 import { aqlQuery } from './aql';
+import { isTrackingBudget } from './budget/actions';
 import * as cloudStorage from './cloud-storage';
 import type { RemoteFile } from './cloud-storage';
 import * as db from './db';
-import { APIError } from './errors';
+import { APIError, withErrorCode } from './errors';
 import { runMutator } from './mutators';
 import * as prefs from './prefs';
 import * as sheet from './sheet';
@@ -169,7 +170,7 @@ handlers['api/load-budget'] = async function ({ id }) {
     } else {
       connection.send('show-budgets');
 
-      throw new Error(getSyncError(error, id));
+      throw withErrorCode(new Error(getSyncError(error, id)), error);
     }
   }
 };
@@ -188,12 +189,18 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
   if (!localBudget) {
     const files = await handlers['get-remote-files']();
     if (!files) {
-      throw new Error('Could not get remote files');
+      throw withErrorCode(
+        new Error('Could not get remote files'),
+        'network-failure',
+      );
     }
     const file = files.find(f => f.groupId === syncId);
     if (!file) {
-      throw new Error(
-        `Budget "${syncId}" not found. Check the sync id of your budget in the Advanced section of the settings page.`,
+      throw withErrorCode(
+        new Error(
+          `Budget "${syncId}" not found. Check the sync id of your budget in the Advanced section of the settings page.`,
+        ),
+        'budget-not-found',
       );
     }
 
@@ -205,8 +212,11 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
   // Set the e2e encryption keys
   if (activeFile.encryptKeyId) {
     if (!password) {
-      throw new Error(
-        `File ${activeFile.name} is encrypted. Please provide a password.`,
+      throw withErrorCode(
+        new Error(
+          `File ${activeFile.name} is encrypted. Please provide a password.`,
+        ),
+        'missing-key',
       );
     }
 
@@ -215,7 +225,10 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
       password,
     });
     if (result.error) {
-      throw new Error(getTestKeyError(result.error));
+      throw withErrorCode(
+        new Error(getTestKeyError(result.error)),
+        result.error.reason,
+      );
     }
   }
 
@@ -224,7 +237,12 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
     await handlers['load-budget']({ id: localBudget.id });
     const result = await handlers['sync-budget']();
     if (result.error) {
-      throw new Error(getSyncError(result.error.reason, localBudget.id));
+      throw withErrorCode(
+        new Error(
+          getSyncError(result.error.reason, localBudget.id, result.error.meta),
+        ),
+        result.error.reason,
+      );
     }
     return;
   }
@@ -235,7 +253,10 @@ handlers['api/download-budget'] = async function ({ syncId, password }) {
   });
   if (result.error) {
     logger.log('Full error details', result.error);
-    throw new Error(getDownloadError(result.error));
+    throw withErrorCode(
+      new Error(getDownloadError(result.error)),
+      result.error.reason,
+    );
   }
   await handlers['load-budget']({ id: result.id });
 };
@@ -253,7 +274,10 @@ handlers['api/sync'] = async function () {
   const { id } = prefs.getPrefs();
   const result = await handlers['sync-budget']();
   if (result.error) {
-    throw new Error(getSyncError(result.error.reason, id));
+    throw withErrorCode(
+      new Error(getSyncError(result.error.reason, id, result.error.meta)),
+      result.error.reason,
+    );
   }
 };
 
@@ -275,7 +299,7 @@ handlers['api/bank-sync'] = async function (args) {
     );
     const simpleFinAccountIds = simpleFinAccounts.map(a => a.id);
 
-    if (simpleFinAccounts.length > 1) {
+    if (simpleFinAccounts.length >= 1) {
       const res = await handlers['simplefin-batch-sync']({
         ids: simpleFinAccountIds,
       });
@@ -292,7 +316,7 @@ handlers['api/bank-sync'] = async function (args) {
 
   const errors = allErrors.filter(e => e != null);
   if (errors.length > 0) {
-    throw new Error(getBankSyncError(errors[0]));
+    throw withErrorCode(new Error(getBankSyncError(errors[0])), errors[0].code);
   }
 };
 
@@ -329,8 +353,8 @@ handlers['api/finish-import'] = async function () {
   await handlers['get-budget-bounds']();
   await sheet.waitOnSpreadsheet();
 
-  await cloudStorage.upload().catch(() => {
-    // Ignore errors
+  await cloudStorage.upload().catch(err => {
+    logger.warn('cloudStorage.upload failed during finish-import', err);
   });
 
   connection.send('finish-import');
@@ -393,6 +417,23 @@ handlers['api/budget-month'] = async function ({ month }) {
 
     categoryGroups: groups.map(group => {
       if (group.is_income) {
+        if (isTrackingBudget()) {
+          return {
+            ...categoryGroupModel.toExternal(group),
+            budgeted: value(`group-budget-${group.id}`),
+            received: value(`group-sum-amount-${group.id}`),
+            balance: value(`group-leftover-${group.id}`),
+
+            categories: group.categories.map(cat => ({
+              ...categoryModel.toExternal(cat),
+              budgeted: value(`budget-${cat.id}`),
+              received: value(`sum-amount-${cat.id}`),
+              balance: value(`leftover-${cat.id}`),
+              carryover: value(`carryover-${cat.id}`),
+            })),
+          };
+        }
+
         return {
           ...categoryGroupModel.toExternal(group),
           received: value('total-income'),
@@ -550,6 +591,7 @@ handlers['api/transaction-update'] = withMutation(async function ({
     return [];
   }
 
+  // @ts-expect-error - fix me
   const { diff } = updateTransaction(transactions, { id, ...fields });
   return handlers['transactions-batch-update'](diff)['updated'];
 });
@@ -592,6 +634,7 @@ handlers['api/account-create'] = withMutation(async function ({
 
 handlers['api/account-update'] = withMutation(async function ({ id, fields }) {
   checkFileOpen();
+  // @ts-expect-error - fix me
   return db.updateAccount({ id, ...accountModel.fromExternal(fields) });
 });
 
@@ -627,19 +670,19 @@ handlers['api/account-balance'] = withMutation(async function ({
 });
 
 handlers['api/categories-get'] = async function ({
-  grouped,
-}: { grouped? } = {}) {
+  hidden,
+}: { hidden?: boolean } = {}) {
   checkFileOpen();
-  const result = await handlers['get-categories']();
-  return grouped
-    ? result.grouped.map(categoryGroupModel.toExternal)
-    : result.list.map(categoryModel.toExternal);
+  const result = await handlers['get-categories']({ hidden });
+  return result.list.map(category => categoryModel.toExternal(category));
 };
 
-handlers['api/category-groups-get'] = async function () {
+handlers['api/category-groups-get'] = async function ({
+  hidden,
+}: { hidden?: boolean } = {}) {
   checkFileOpen();
-  const groups = await handlers['get-category-groups']();
-  return groups.map(categoryGroupModel.toExternal);
+  const groups = await handlers['get-category-groups']({ hidden });
+  return groups.map(group => categoryGroupModel.toExternal(group));
 };
 
 handlers['api/category-group-create'] = withMutation(async function ({
@@ -659,6 +702,7 @@ handlers['api/category-group-update'] = withMutation(async function ({
   checkFileOpen();
   return handlers['category-group-update']({
     id,
+    // @ts-expect-error - fix me
     ...categoryGroupModel.fromExternal(fields),
   });
 });
@@ -688,6 +732,7 @@ handlers['api/category-update'] = withMutation(async function ({ id, fields }) {
   checkFileOpen();
   return handlers['category-update']({
     id,
+    // @ts-expect-error - fix me
     ...categoryModel.fromExternal(fields),
   });
 });
@@ -703,16 +748,26 @@ handlers['api/category-delete'] = withMutation(async function ({
   });
 });
 
+handlers['api/note-get'] = async function ({ id }) {
+  checkFileOpen();
+  return handlers['notes-get']({ id });
+};
+
+handlers['api/note-update'] = withMutation(async function ({ id, note }) {
+  checkFileOpen();
+  return handlers['notes-save']({ id, note });
+});
+
 handlers['api/common-payees-get'] = async function () {
   checkFileOpen();
   const payees = await handlers['common-payees-get']();
-  return payees.map(payeeModel.toExternal);
+  return payees.map(payee => payeeModel.toExternal(payee));
 };
 
 handlers['api/payees-get'] = async function () {
   checkFileOpen();
   const payees = await handlers['payees-get']();
-  return payees.map(payeeModel.toExternal);
+  return payees.map(payee => payeeModel.toExternal(payee));
 };
 
 handlers['api/payee-create'] = withMutation(async function ({ payee }) {
@@ -723,6 +778,7 @@ handlers['api/payee-create'] = withMutation(async function ({ payee }) {
 handlers['api/payee-update'] = withMutation(async function ({ id, fields }) {
   checkFileOpen();
   return handlers['payees-batch-change']({
+    // @ts-expect-error - fix me
     updated: [{ id, ...payeeModel.fromExternal(fields) }],
   });
 });
@@ -743,7 +799,7 @@ handlers['api/payees-merge'] = withMutation(async function ({
 handlers['api/tags-get'] = async function () {
   checkFileOpen();
   const tags = await handlers['tags-get']();
-  return tags.map(tagModel.toExternal);
+  return tags.map(tag => tagModel.toExternal(tag));
 };
 
 handlers['api/tag-create'] = withMutation(async function ({ tag }) {
@@ -765,6 +821,34 @@ handlers['api/tag-delete'] = withMutation(async function ({ id }) {
   checkFileOpen();
   await handlers['tags-delete']({ id });
 });
+
+handlers['api/payee-location-create'] = withMutation(async function ({
+  payeeId,
+  latitude,
+  longitude,
+}) {
+  checkFileOpen();
+  return handlers['payee-location-create']({ payeeId, latitude, longitude });
+});
+
+handlers['api/payee-locations-get'] = async function ({ payeeId }) {
+  checkFileOpen();
+  return handlers['payee-locations-get']({ payeeId });
+};
+
+handlers['api/payee-location-delete'] = withMutation(async function ({ id }) {
+  checkFileOpen();
+  return handlers['payee-location-delete']({ id });
+});
+
+handlers['api/payees-get-nearby'] = async function ({
+  latitude,
+  longitude,
+  maxDistance,
+}) {
+  checkFileOpen();
+  return handlers['payees-get-nearby']({ latitude, longitude, maxDistance });
+};
 
 handlers['api/rules-get'] = async function () {
   checkFileOpen();
@@ -916,7 +1000,7 @@ handlers['api/schedule-update'] = withMutation(async function ({
               break;
             default:
               throw APIError(
-                `Invalid amount operator: ${value}. Expected: is, isapprox, or isbetween`,
+                `Invalid amount operator: ${String(value)}. Expected: is, isapprox, or isbetween`,
               );
           }
           sched._conditions[amountIndex].op = convertedOp;
@@ -991,7 +1075,6 @@ handlers['api/get-id-by-name'] = async function ({ type, name }) {
 };
 
 handlers['api/get-server-version'] = async function () {
-  checkFileOpen();
   return handlers['get-server-version']();
 };
 

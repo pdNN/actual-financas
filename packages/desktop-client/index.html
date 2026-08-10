@@ -31,7 +31,8 @@
       body,
       button,
       input {
-        font-family:
+        font-family: var(
+          --font-family,
           'Inter Variable',
           -apple-system,
           BlinkMacSystemFont,
@@ -45,7 +46,8 @@
           'Helvetica Neue',
           'Helvetica',
           'Arial',
-          sans-serif;
+          sans-serif
+        );
       }
 
       a {
@@ -64,10 +66,20 @@
         outline-color: #2b8fed;
       }
 
+      /* recharts makes chart surfaces and layers focusable for keyboard
+         navigation; suppress the focus ring it would draw on click */
+      .recharts-wrapper:focus,
+      .recharts-wrapper :focus,
+      .recharts-surface:focus,
+      .recharts-surface :focus {
+        outline: none;
+      }
+
       input,
       textarea {
         font-size: 1em;
-        font-family:
+        font-family: var(
+          --font-family,
           'Inter Variable',
           -apple-system,
           BlinkMacSystemFont,
@@ -81,8 +93,12 @@
           'Helvetica Neue',
           'Helvetica',
           'Arial',
-          sans-serif;
-        font-feature-settings: 'ss01', 'ss04';
+          sans-serif
+        );
+        font-feature-settings:
+          'ss01',
+          'ss04',
+          'calt' 0;
       }
 
       html,
@@ -92,21 +108,6 @@
       }
       body {
         overflow: hidden;
-      }
-
-      .view {
-        align-items: stretch;
-        border-width: 0;
-        border-style: solid;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        margin: 0;
-        padding: 0;
-        position: relative;
-        /* fix flexbox bugs */
-        min-height: 0;
-        min-width: 0;
       }
 
       .cm-theme-dark {

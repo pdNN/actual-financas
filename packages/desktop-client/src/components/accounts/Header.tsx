@@ -26,34 +26,34 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import { format as formatDate } from 'date-fns';
-
-import { tsToRelativeTime } from 'loot-core/shared/util';
+import { tsToRelativeTime } from '@actual-app/core/shared/util';
 import type {
   AccountEntity,
   RuleConditionEntity,
   TransactionEntity,
   TransactionFilterEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+import { format as formatDate } from 'date-fns';
+
+import { isAccountFailedSync } from '#accounts/syncStatus';
+import { AnimatedRefresh } from '#components/AnimatedRefresh';
+import { Search } from '#components/common/Search';
+import { FilterButton } from '#components/filters/FiltersMenu';
+import { FiltersStack } from '#components/filters/FiltersStack';
+import type { SavedFilter } from '#components/filters/SavedFilterMenuButton';
+import { NotesButton } from '#components/NotesButton';
+import { SelectedTransactionsButton } from '#components/transactions/SelectedTransactionsButton';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useLocale } from '#hooks/useLocale';
+import { useLocalPref } from '#hooks/useLocalPref';
+import { useSplitsExpanded } from '#hooks/useSplitsExpanded';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 
 import type { TableRef } from './Account';
 import { Balances } from './Balance';
 import { BalanceHistoryGraph } from './BalanceHistoryGraph';
 import { ReconcileMenu, ReconcilingMessage } from './Reconcile';
-
-import { AnimatedRefresh } from '@desktop-client/components/AnimatedRefresh';
-import { Search } from '@desktop-client/components/common/Search';
-import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
-import { FiltersStack } from '@desktop-client/components/filters/FiltersStack';
-import type { SavedFilter } from '@desktop-client/components/filters/SavedFilterMenuButton';
-import { NotesButton } from '@desktop-client/components/NotesButton';
-import { SelectedTransactionsButton } from '@desktop-client/components/transactions/SelectedTransactionsButton';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useLocalPref } from '@desktop-client/hooks/useLocalPref';
-import { useSplitsExpanded } from '@desktop-client/hooks/useSplitsExpanded';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
 
 type AccountHeaderProps = {
   tableRef: TableRef;
@@ -65,17 +65,13 @@ type AccountHeaderProps = {
   filterId?: SavedFilter;
   savedFilters: TransactionFilterEntity[];
   accountsSyncing: string[];
-  failedAccounts: AccountSyncSidebarProps['failedAccounts'];
   accounts: AccountEntity[];
   transactions: TransactionEntity[];
-  showBalances: boolean;
   showExtraBalances: boolean;
-  showCleared: boolean;
   showReconciled: boolean;
   showEmptyMessage: boolean;
   balanceQuery: ComponentProps<typeof ReconcilingMessage>['balanceQuery'];
   reconcileAmount?: number | null;
-  canCalculateBalance?: () => boolean;
   isFiltered: boolean;
   filteredAmount?: number | null;
   isSorted: boolean;
@@ -141,17 +137,13 @@ export function AccountHeader({
   filterId,
   savedFilters,
   accountsSyncing,
-  failedAccounts,
   accounts,
   transactions,
-  showBalances,
   showExtraBalances,
-  showCleared,
   showReconciled,
   showEmptyMessage,
   balanceQuery,
   reconcileAmount,
-  canCalculateBalance,
   isFiltered,
   filteredAmount,
   isSorted,
@@ -231,14 +223,20 @@ export function AccountHeader({
 
   useHotkeys(
     'ctrl+f, cmd+f, meta+f',
-    () => {
+    e => {
       if (searchInput.current) {
-        searchInput.current.focus();
+        // Trigger browser-native find if user pressed search twice in a row
+        if (document.activeElement === searchInput.current) {
+          searchInput.current.blur();
+        } else {
+          e.preventDefault();
+          searchInput.current.focus();
+        }
       }
     },
     {
       enableOnFormTags: true,
-      preventDefault: true,
+      preventDefault: false,
       scopes: ['app'],
     },
     [searchInput],
@@ -299,7 +297,6 @@ export function AccountHeader({
               {!!account?.bank && (
                 <AccountSyncSidebar
                   account={account}
-                  failedAccounts={failedAccounts}
                   accountsSyncing={accountsSyncing}
                 />
               )}
@@ -506,12 +503,7 @@ export function AccountHeader({
                       account={account}
                       canSync={canSync}
                       showNetWorthChart={showNetWorthChart}
-                      canShowBalances={
-                        canCalculateBalance ? canCalculateBalance() : false
-                      }
                       isSorted={isSorted}
-                      showBalances={showBalances}
-                      showCleared={showCleared}
                       showReconciled={showReconciled}
                       onMenuSelect={onMenuSelect}
                     />
@@ -551,6 +543,10 @@ export function AccountHeader({
                             ? t('Hide balance chart')
                             : t('Show balance chart'),
                         },
+                        {
+                          name: 'manage-columns',
+                          text: t('Manage table columns'),
+                        },
                       ]}
                     />
                   </Dialog>
@@ -587,19 +583,11 @@ export function AccountHeader({
 
 type AccountSyncSidebarProps = {
   account: AccountEntity;
-  failedAccounts: Map<
-    string,
-    {
-      type: string;
-      code: string;
-    }
-  >;
   accountsSyncing: string[];
 };
 
 function AccountSyncSidebar({
   account,
-  failedAccounts,
   accountsSyncing,
 }: AccountSyncSidebarProps) {
   return (
@@ -607,7 +595,7 @@ function AccountSyncSidebar({
       style={{
         backgroundColor: accountsSyncing.includes(account.id)
           ? theme.sidebarItemBackgroundPending
-          : failedAccounts.has(account.id)
+          : isAccountFailedSync(account)
             ? theme.sidebarItemBackgroundFailed
             : theme.sidebarItemBackgroundPositive,
         marginRight: '4px',
@@ -732,9 +720,6 @@ type AccountMenuProps = {
   account: AccountEntity;
   canSync: boolean;
   showNetWorthChart: boolean;
-  showBalances: boolean;
-  canShowBalances: boolean;
-  showCleared: boolean;
   showReconciled: boolean;
   isSorted: boolean;
   onMenuSelect: (
@@ -744,11 +729,10 @@ type AccountMenuProps = {
       | 'close'
       | 'reopen'
       | 'export'
-      | 'toggle-balance'
       | 'remove-sorting'
-      | 'toggle-cleared'
       | 'toggle-reconciled'
-      | 'toggle-net-worth-chart',
+      | 'toggle-net-worth-chart'
+      | 'manage-columns',
   ) => void;
 };
 
@@ -756,9 +740,6 @@ function AccountMenu({
   account,
   canSync,
   showNetWorthChart,
-  showBalances,
-  canShowBalances,
-  showCleared,
   showReconciled,
   isSorted,
   onMenuSelect,
@@ -781,16 +762,6 @@ function AccountMenu({
               } as const,
             ]
           : []),
-        ...(canShowBalances
-          ? [
-              {
-                name: 'toggle-balance',
-                text: showBalances
-                  ? t('Hide running balance')
-                  : t('Show running balance'),
-              } as const,
-            ]
-          : []),
         {
           name: 'toggle-net-worth-chart',
           text: showNetWorthChart
@@ -798,10 +769,8 @@ function AccountMenu({
             : t('Show balance chart'),
         },
         {
-          name: 'toggle-cleared',
-          text: showCleared
-            ? t('Hide "cleared" checkboxes')
-            : t('Show "cleared" checkboxes'),
+          name: 'manage-columns',
+          text: t('Manage table columns'),
         },
         {
           name: 'toggle-reconciled',

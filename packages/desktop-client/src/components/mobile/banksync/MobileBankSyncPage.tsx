@@ -5,91 +5,67 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { AccountEntity } from '@actual-app/core/types/models';
 
-import type { AccountEntity, BankSyncProviders } from 'loot-core/types/models';
+import {
+  getGroupedBankSyncEntries,
+  getSyncSourceReadable,
+  groupBankSyncAccounts,
+} from '#components/banksync/bankSyncUtils';
+import type { GroupedBankSyncAccounts } from '#components/banksync/bankSyncUtils';
+import { BuiltInProviders } from '#components/banksync/BuiltInProviders';
+import { useBuiltInBankSyncProviders } from '#components/banksync/useBuiltInBankSyncProviders';
+import { Search } from '#components/common/Search';
+import { MobilePageHeader, Page } from '#components/Page';
+import { useAccounts } from '#hooks/useAccounts';
+import { useLocalPref } from '#hooks/useLocalPref';
+import { useNavigate } from '#hooks/useNavigate';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 import { BankSyncAccountsList } from './BankSyncAccountsList';
-
-import { Search } from '@desktop-client/components/common/Search';
-import { MobilePageHeader, Page } from '@desktop-client/components/Page';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
-
-type SyncProviders = BankSyncProviders | 'unlinked';
-
-const useSyncSourceReadable = () => {
-  const { t } = useTranslation();
-
-  const syncSourceReadable: Record<SyncProviders, string> = {
-    goCardless: 'GoCardless',
-    simpleFin: 'SimpleFIN',
-    pluggyai: 'Pluggy.ai',
-    unlinked: t('Unlinked'),
-  };
-
-  return { syncSourceReadable };
-};
 
 export function MobileBankSyncPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { syncSourceReadable } = useSyncSourceReadable();
   const { data: accounts = [] } = useAccounts();
   const [filter, setFilter] = useState('');
+  const [providersCollapsed = true, setProvidersCollapsed] = useLocalPref(
+    'mobile.bankSyncProvidersCollapsed',
+  );
+  const syncSourceReadable = useMemo(() => getSyncSourceReadable(t), [t]);
+  const { providers, syncServerStatus, permissionWarning } =
+    useBuiltInBankSyncProviders();
 
   const openAccounts = useMemo(
     () => accounts.filter(a => !a.closed),
     [accounts],
   );
 
-  const groupedAccounts = useMemo(() => {
-    const unsorted = openAccounts.reduce(
-      (acc, a) => {
-        const syncSource = a.account_sync_source ?? 'unlinked';
-        acc[syncSource] = acc[syncSource] || [];
-        acc[syncSource].push(a);
-        return acc;
-      },
-      {} as Record<SyncProviders, AccountEntity[]>,
-    );
-
-    const sortedKeys = Object.keys(unsorted).sort((keyA, keyB) => {
-      if (keyA === 'unlinked') return 1;
-      if (keyB === 'unlinked') return -1;
-      return keyA.localeCompare(keyB);
-    });
-
-    return sortedKeys.reduce(
-      (sorted, key) => {
-        sorted[key as SyncProviders] = unsorted[key as SyncProviders];
-        return sorted;
-      },
-      {} as Record<SyncProviders, AccountEntity[]>,
-    );
-  }, [openAccounts]);
+  const groupedAccounts = useMemo(
+    () => groupBankSyncAccounts(openAccounts),
+    [openAccounts],
+  );
 
   const filteredGroupedAccounts = useMemo(() => {
     if (!filter) return groupedAccounts;
 
     const filterLower = filter.toLowerCase();
-    const filtered: Record<SyncProviders, AccountEntity[]> = {} as Record<
-      SyncProviders,
-      AccountEntity[]
-    >;
+    const filtered: GroupedBankSyncAccounts = {};
 
-    Object.entries(groupedAccounts).forEach(([provider, accounts]) => {
-      const filteredAccounts = accounts.filter(
-        account =>
-          account.name.toLowerCase().includes(filterLower) ||
-          account.bankName?.toLowerCase().includes(filterLower),
-      );
-      if (filteredAccounts.length > 0) {
-        filtered[provider as SyncProviders] = filteredAccounts;
-      }
-    });
+    getGroupedBankSyncEntries(groupedAccounts).forEach(
+      ([provider, accounts]) => {
+        const filteredAccounts = accounts.filter(
+          account =>
+            account.name.toLowerCase().includes(filterLower) ||
+            account.bankName?.toLowerCase().includes(filterLower),
+        );
+        if (filteredAccounts.length > 0) {
+          filtered[provider] = filteredAccounts;
+        }
+      },
+    );
 
     return filtered;
   }, [groupedAccounts, filter]);
@@ -123,30 +99,42 @@ export function MobileBankSyncPage() {
 
   return (
     <Page header={<MobilePageHeader title={t('Bank Sync')} />} padding={0}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: theme.mobilePageBackground,
-          padding: 10,
-          width: '100%',
-          borderBottomWidth: 2,
-          borderBottomStyle: 'solid',
-          borderBottomColor: theme.tableBorder,
-        }}
-      >
-        <Search
-          placeholder={t('Filter accounts…')}
-          value={filter}
-          onChange={onSearchChange}
-          width="100%"
-          height={styles.mobileMinHeight}
-          style={{
-            backgroundColor: theme.tableBackground,
-            borderColor: theme.formInputBorder,
-          }}
+      <View style={{ padding: 15, flexShrink: 0 }}>
+        <BuiltInProviders
+          providers={providers}
+          syncServerStatus={syncServerStatus}
+          permissionWarning={permissionWarning}
+          isCollapsed={providersCollapsed}
+          onToggleCollapse={() => setProvidersCollapsed(!providersCollapsed)}
         />
       </View>
+      {openAccounts.length > 0 && (
+        <View
+          style={{
+            flexShrink: 0,
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: theme.mobilePageBackground,
+            padding: 10,
+            width: '100%',
+            borderBottomWidth: 2,
+            borderBottomStyle: 'solid',
+            borderBottomColor: theme.tableBorder,
+          }}
+        >
+          <Search
+            placeholder={t('Filter accounts…')}
+            value={filter}
+            onChange={onSearchChange}
+            width="100%"
+            height={styles.mobileMinHeight}
+            style={{
+              backgroundColor: theme.tableBackground,
+              borderColor: theme.formInputBorder,
+            }}
+          />
+        </View>
+      )}
 
       {openAccounts.length === 0 ? (
         <View
@@ -166,7 +154,9 @@ export function MobileBankSyncPage() {
             }}
           >
             <Trans>
-              To use the bank syncing features, you must first add an account.
+              Linked accounts will appear here. Use a provider above to link
+              your bank, or create an account from the Accounts tab and connect
+              it here later.
             </Trans>
           </Text>
         </View>

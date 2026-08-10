@@ -1,8 +1,14 @@
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import babel from '@rolldown/plugin-babel';
 import type { StorybookConfig } from '@storybook/react-vite';
-import viteTsconfigPaths from 'vite-tsconfig-paths';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+
+// Any workspace package's source; node_modules stays excluded by the babel
+// plugin's default exclude.
+const reactCompilerInclude =
+  /[\\/]packages[\\/][^\\/]+[\\/]src[\\/].*\.[jt]sx?(?:$|\?)/;
 
 /**
  * This function is used to resolve the absolute path of a package.
@@ -32,11 +38,16 @@ const config: StorybookConfig = {
     const { mergeConfig } = await import('vite');
 
     return mergeConfig(config, {
-      // Telling Vite how to resolve path aliases
-      plugins: [viteTsconfigPaths({ root: '../..' })],
-      esbuild: {
-        // Needed to handle JSX in .ts/.tsx files
-        jsx: 'automatic',
+      plugins: [
+        react(),
+        babel({
+          include: [reactCompilerInclude],
+          // n.b. Must be a string to ensure plugin resolution order. See https://github.com/actualbudget/actual/pull/5853
+          presets: [reactCompilerPreset()],
+        }),
+      ],
+      resolve: {
+        tsconfigPaths: true,
       },
     });
   },

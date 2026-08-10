@@ -1,19 +1,18 @@
 import React, { useCallback, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 
 import { Popover } from '@actual-app/components/popover';
 import { View } from '@actual-app/components/view';
 
+import { CoverMenu } from '#components/budget/envelope/CoverMenu';
+import { useEnvelopeSheetValue } from '#components/budget/envelope/EnvelopeBudgetComponents';
+import { HoldMenu } from '#components/budget/envelope/HoldMenu';
+import { TransferMenu } from '#components/budget/envelope/TransferMenu';
+import { useFormat } from '#hooks/useFormat';
+import { envelopeBudget } from '#spreadsheet/bindings';
+
 import { ToBudgetAmount } from './ToBudgetAmount';
 import { ToBudgetMenu } from './ToBudgetMenu';
-
-import { CoverMenu } from '@desktop-client/components/budget/envelope/CoverMenu';
-import { useEnvelopeSheetValue } from '@desktop-client/components/budget/envelope/EnvelopeBudgetComponents';
-import { HoldMenu } from '@desktop-client/components/budget/envelope/HoldMenu';
-import { TransferMenu } from '@desktop-client/components/budget/envelope/TransferMenu';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { envelopeBudget } from '@desktop-client/spreadsheet/bindings';
 
 type ToBudgetProps = {
   month: string;
@@ -53,14 +52,20 @@ export function ToBudget({
     );
   }
 
-  const {
-    setMenuOpen,
-    menuOpen,
-    handleContextMenu,
-    resetPosition,
-    position,
-    asContextMenu,
-  } = useContextMenu();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [position, setPosition] = useState({ crossOffset: 0, offset: 0 });
+  const resetPosition = (crossOffset = 0, offset = 0) =>
+    setPosition({ crossOffset, offset });
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPosition({
+      crossOffset: e.clientX - rect.left,
+      offset: e.clientY - rect.bottom,
+    });
+    setMenuOpen(true);
+  };
 
   return (
     <>
@@ -80,7 +85,7 @@ export function ToBudget({
 
       <Popover
         triggerRef={triggerRef}
-        placement={asContextMenu ? 'bottom start' : 'bottom'}
+        placement="bottom"
         isOpen={menuOpen}
         onOpenChange={() => {
           setMenuStep('actions');

@@ -6,7 +6,9 @@ import type { CustomReportPage } from './page-models/custom-report-page';
 import { Navigation } from './page-models/navigation';
 import type { ReportsPage } from './page-models/reports-page';
 
-test.describe.parallel('Reports', () => {
+test.describe('Reports', () => {
+  test.describe.configure({ mode: 'serial' });
+
   let page: Page;
   let navigation: Navigation;
   let reportsPage: ReportsPage;
@@ -45,6 +47,13 @@ test.describe.parallel('Reports', () => {
     await expect(page).toMatchThemeScreenshots();
   });
 
+  test('right clicking a report card opens context menu', async () => {
+    await reportsPage.rightClickReportCard('Net Worth');
+    const menu = page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('button', { name: 'Rename' })).toBeVisible();
+  });
+
   test('loads net worth graph and checks visuals', async () => {
     await reportsPage.goToNetWorthPage();
     await expect(page).toMatchThemeScreenshots();
@@ -55,11 +64,68 @@ test.describe.parallel('Reports', () => {
     await expect(page).toMatchThemeScreenshots();
   });
 
-  test.describe.parallel('custom reports', () => {
+  test('opens the date range picker and checks visuals', async () => {
+    await reportsPage.goToNetWorthPage();
+
+    await page.getByTestId('date-range-picker-trigger').click();
+    const picker = page.locator('[data-popover]');
+    await expect(picker).toMatchThemeScreenshots();
+
+    // Switch to day granularity
+    await picker.getByRole('button', { name: 'Day', exact: true }).click();
+    await expect(picker).toMatchThemeScreenshots();
+  });
+
+  test.describe('balance forecast', () => {
+    test.beforeEach(async () => {
+      const settingsPage = await navigation.goToSettingsPage();
+      await settingsPage.enableExperimentalFeature('Balance Forecast Report');
+
+      reportsPage = await navigation.goToReportsPage();
+      await reportsPage.waitToLoad();
+      await reportsPage.addWidget('Balance forecast');
+      await reportsPage.goToBalanceForecastPage();
+    });
+
+    test('loads balance forecast report with monthly granularity', async () => {
+      await expect(page).toMatchThemeScreenshots();
+    });
+
+    test('switches to daily granularity', async () => {
+      await reportsPage.selectForecastGranularity('Daily');
+
+      await expect(page).toMatchThemeScreenshots();
+    });
+
+    test('loads tracking budget forecast report', async () => {
+      const settingsPage = await navigation.goToSettingsPage();
+      await settingsPage.useBudgetType('Tracking');
+
+      const budgetPage = await navigation.goToBudgetPage();
+      await budgetPage.goToNextMonth();
+      await budgetPage.setBudgetedAmount('Food', '1200', 0);
+      await budgetPage.goToNextMonth();
+      await budgetPage.setBudgetedAmount('Food', '1200', 0);
+      await budgetPage.goToNextMonth();
+      await budgetPage.setBudgetedAmount('Food', '1200', 0);
+
+      reportsPage = await navigation.goToReportsPage();
+      await reportsPage.waitToLoad();
+      await reportsPage.goToBalanceForecastPage();
+      await reportsPage.selectForecastSource('Tracking budget');
+
+      await expect(page).toMatchThemeScreenshots();
+    });
+  });
+
+  test.describe('custom reports', () => {
     let customReportPage: CustomReportPage;
 
     test.beforeEach(async () => {
       customReportPage = await reportsPage.goToCustomReportPage();
+      await page.addStyleTag({
+        content: '[role="tooltip"] { display: none !important; }',
+      });
     });
 
     test('Switches to Data Table and checks the visuals', async () => {

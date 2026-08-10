@@ -6,21 +6,22 @@ import { ButtonWithLoading } from '@actual-app/components/button';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
+import { Toggle } from '@actual-app/components/toggle';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
 
-import { send } from 'loot-core/platform/client/connection';
-import { getSecretsError } from 'loot-core/shared/errors';
-
-import { Error } from '@desktop-client/components/alerts';
-import { Link } from '@desktop-client/components/common/Link';
+import { Error } from '#components/alerts';
+import { Link } from '#components/common/Link';
 import {
   Modal,
   ModalButtons,
   ModalCloseButton,
   ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { FormField, FormLabel } from '@desktop-client/components/forms';
-import type { Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+} from '#components/common/Modal';
+import { FormField, FormLabel } from '#components/forms';
+import { useCurrentAccess } from '#hooks/useCurrentAccess';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { getSecretsError } from '#util/error';
 
 type PluggyAiInitialiseProps = Extract<
   ModalType,
@@ -29,11 +30,16 @@ type PluggyAiInitialiseProps = Extract<
 
 export const PluggyAiInitialiseModal = ({
   onSuccess,
+  credentialSource,
 }: PluggyAiInitialiseProps) => {
   const { t } = useTranslation();
+  const { cloudFileId, isAdmin: canSetGlobalCredentials } = useCurrentAccess();
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [itemIds, setItemIds] = useState('');
+  const [perBudgetFile, setPerBudgetFile] = useState(
+    credentialSource === 'per-budget-file' || !canSetGlobalCredentials,
+  );
   const [isValid, setIsValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(
@@ -55,57 +61,72 @@ export const PluggyAiInitialiseModal = ({
 
     setIsLoading(true);
 
-    let { error, reason } =
+    const fileId = perBudgetFile ? cloudFileId : null;
+    if (perBudgetFile && !fileId) {
+      setIsLoading(false);
+      setIsValid(false);
+      setError(t('Budget file ID is required.'));
+      return;
+    }
+
+    let result =
       (await send('secret-set', {
         name: 'pluggyai_clientId',
         value: clientId,
+        fileId,
       })) || {};
+    let { error, reason } = result;
 
     if (error) {
       setIsLoading(false);
       setIsValid(false);
       setError(getSecretsError(error, reason));
       return;
-    } else {
-      ({ error, reason } =
-        (await send('secret-set', {
-          name: 'pluggyai_clientSecret',
-          value: clientSecret,
-        })) || {});
-      if (error) {
-        setIsLoading(false);
-        setIsValid(false);
-        setError(getSecretsError(error, reason));
-        return;
-      } else {
-        ({ error, reason } =
-          (await send('secret-set', {
-            name: 'pluggyai_itemIds',
-            value: itemIds,
-          })) || {});
+    }
 
-        if (error) {
-          setIsLoading(false);
-          setIsValid(false);
-          setError(getSecretsError(error, reason));
-          return;
-        }
-      }
+    result =
+      (await send('secret-set', {
+        name: 'pluggyai_clientSecret',
+        value: clientSecret,
+        fileId,
+      })) || {};
+    ({ error, reason } = result);
+
+    if (error) {
+      setIsLoading(false);
+      setIsValid(false);
+      setError(getSecretsError(error, reason));
+      return;
+    }
+
+    result =
+      (await send('secret-set', {
+        name: 'pluggyai_itemIds',
+        value: itemIds,
+        fileId,
+      })) || {};
+    ({ error, reason } = result);
+
+    if (error) {
+      setIsLoading(false);
+      setIsValid(false);
+      setError(getSecretsError(error, reason));
+      return;
     }
 
     setIsValid(true);
-    onSuccess();
+    onSuccess(perBudgetFile);
     setIsLoading(false);
     close();
   };
 
   return (
     <Modal name="pluggyai-init" containerProps={{ style: { width: '30vw' } }}>
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('Set-up Pluggy.ai')}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View style={{ display: 'flex', gap: 10 }}>
             <Text>
@@ -123,6 +144,25 @@ export const PluggyAiInitialiseModal = ({
                 .
               </Trans>
             </Text>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <Text>
+                <Trans>For this budget only</Trans>
+              </Text>
+              <Toggle
+                id="pluggyai-per-budget-file"
+                isOn={perBudgetFile}
+                isDisabled={!canSetGlobalCredentials}
+                onToggle={setPerBudgetFile}
+              />
+            </View>
 
             <FormField>
               <FormLabel title={t('Client ID:')} htmlFor="client-id-field" />
@@ -180,7 +220,7 @@ export const PluggyAiInitialiseModal = ({
               variant="primary"
               isLoading={isLoading}
               onPress={() => {
-                void onSubmit(close);
+                void onSubmit(() => state.close());
               }}
             >
               <Trans>Save and continue</Trans>

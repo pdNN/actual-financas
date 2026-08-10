@@ -5,6 +5,12 @@ import { useTranslation } from 'react-i18next';
 
 import { AlignedText } from '@actual-app/components/aligned-text';
 import { theme } from '@actual-app/components/theme';
+import type {
+  balanceTypeOpType,
+  DataEntity,
+  LegendEntity,
+  RuleConditionEntity,
+} from '@actual-app/core/types/models';
 import { css } from '@emotion/css';
 import {
   Bar,
@@ -16,27 +22,20 @@ import {
   YAxis,
 } from 'recharts';
 
-import type {
-  balanceTypeOpType,
-  DataEntity,
-  LegendEntity,
-  RuleConditionEntity,
-} from 'loot-core/types/models';
+import { FinancialText } from '#components/FinancialText';
+import { useRechartsAnimation } from '#components/reports/chart-theme';
+import { Container } from '#components/reports/Container';
+import { getCustomTick } from '#components/reports/getCustomTick';
+import { numberFormatterTooltip } from '#components/reports/numberFormatter';
+import { useAccounts } from '#hooks/useAccounts';
+import { useCategories } from '#hooks/useCategories';
+import { useFormat } from '#hooks/useFormat';
+import type { FormatType } from '#hooks/useFormat';
+import { useNavigate } from '#hooks/useNavigate';
+import { usePrivacyMode } from '#hooks/usePrivacyMode';
 
 import { renderCustomLabel } from './renderCustomLabel';
 import { showActivity } from './showActivity';
-
-import { FinancialText } from '@desktop-client/components/FinancialText';
-import { useRechartsAnimation } from '@desktop-client/components/reports/chart-theme';
-import { Container } from '@desktop-client/components/reports/Container';
-import { getCustomTick } from '@desktop-client/components/reports/getCustomTick';
-import { numberFormatterTooltip } from '@desktop-client/components/reports/numberFormatter';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import type { FormatType } from '@desktop-client/hooks/useFormat';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { usePrivacyMode } from '@desktop-client/hooks/usePrivacyMode';
 
 type PayloadItem = {
   name: string;
@@ -90,6 +89,19 @@ const CustomTooltip = ({
       );
   }, [payload]);
 
+  const maxTooltipItems = 5;
+
+  const visibleItems = useMemo(() => {
+    const nonZero = items.filter(p => p.value !== 0);
+    if (!compact || nonZero.length <= maxTooltipItems) return nonZero;
+
+    const hoveredIndex = nonZero.findIndex(p => tooltip === p.name);
+    if (hoveredIndex >= maxTooltipItems) {
+      return [...nonZero.slice(0, maxTooltipItems - 1), nonZero[hoveredIndex]];
+    }
+    return nonZero.slice(0, maxTooltipItems);
+  }, [compact, items, tooltip]);
+
   if (active && items.length) {
     return (
       <div
@@ -108,29 +120,26 @@ const CustomTooltip = ({
             <strong>{label}</strong>
           </div>
           <div style={{ lineHeight: 1.4 }}>
-            {items.map((pay, i) => {
+            {visibleItems.map(pay => {
               const displayName = dataKeyToName.get(pay.name) ?? pay.name;
               return (
-                pay.value !== 0 &&
-                (compact ? i < 5 : true) && (
-                  <AlignedText
-                    key={pay.name}
-                    left={displayName}
-                    right={
-                      <FinancialText>
-                        {format(pay.value, 'financial')}
-                      </FinancialText>
-                    }
-                    style={{
-                      color: pay.color,
-                      textDecoration:
-                        tooltip === pay.name ? 'underline' : 'inherit',
-                    }}
-                  />
-                )
+                <AlignedText
+                  key={pay.name}
+                  left={displayName}
+                  right={
+                    <FinancialText>
+                      {format(pay.value, 'financial')}
+                    </FinancialText>
+                  }
+                  style={{
+                    color: pay.color,
+                    textDecoration:
+                      tooltip === pay.name ? 'underline' : 'inherit',
+                  }}
+                />
               );
             })}
-            {payload.length > 5 && compact && '...'}
+            {compact && items.length > visibleItems.length && '...'}
             <AlignedText
               left={t('Total')}
               right={
@@ -284,13 +293,13 @@ export function StackedBarGraph({
                     }}
                     onMouseEnter={() => {
                       setTooltip(entry.dataKey);
-                      if (!['Group', 'Interval'].includes(groupBy)) {
+                      if (groupBy !== 'Interval') {
                         setPointer('pointer');
                       }
                     }}
                     onClick={e =>
                       ((compact && showTooltip) || !compact) &&
-                      !['Group', 'Interval'].includes(groupBy) &&
+                      groupBy !== 'Interval' &&
                       showActivity({
                         navigate,
                         categories,
@@ -304,6 +313,7 @@ export function StackedBarGraph({
                         endDate: e.payload?.intervalEndDate,
                         field: groupBy.toLowerCase(),
                         id: entry.id,
+                        uncategorizedId: entry.uncategorizedId,
                         interval,
                       })
                     }

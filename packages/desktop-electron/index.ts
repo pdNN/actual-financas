@@ -1,8 +1,10 @@
 import fs from 'fs';
 import { createServer } from 'http';
 import type { Server } from 'http';
+import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'path';
 
+import type { GlobalPrefsJson } from '@actual-app/core/types/prefs';
 import {
   app,
   BrowserWindow,
@@ -22,12 +24,9 @@ import type {
   SaveDialogOptions,
   UtilityProcess,
 } from 'electron';
-import { copy, exists, mkdir, remove } from 'fs-extra';
-import promiseRetry from 'promise-retry';
-
-import type { GlobalPrefsJson } from '../loot-core/src/types/prefs';
 
 import { getMenu } from './menu';
+import { retry as promiseRetry } from './retry';
 import {
   get as getWindowState,
   listen as listenToWindowState,
@@ -40,13 +39,13 @@ const isPlaywrightTest = process.env.EXECUTION_CONTEXT === 'playwright';
 const isDev = !isPlaywrightTest && !app.isPackaged; // dev mode if not packaged and not playwright
 
 process.env.lootCoreScript = isDev
-  ? 'loot-core/lib-dist/electron/bundle.desktop.js' // serve from local output in development (provides hot-reloading)
+  ? '@actual-app/core/lib-dist/electron/bundle.desktop.js' // serve from local output in development (provides hot-reloading)
   : path.resolve(BUILD_ROOT, 'loot-core/lib-dist/electron/bundle.desktop.js'); // serve from build in production
 
 // This allows relative URLs to be resolved to app:// which makes
 // local assets load correctly
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'app', privileges: { standard: true } },
+  { scheme: 'app', privileges: { standard: true, secure: true } },
 ]);
 
 if (isPlaywrightTest) {
@@ -93,14 +92,15 @@ const logMessage = (loglevel: 'info' | 'error', message: string) => {
 
 const createOAuthServer = async () => {
   const port = 3010;
-  logMessage('info', `OAuth server running on port: ${port}`);
 
   if (oAuthServer) {
+    logMessage('info', `OAuth server is already running on port: ${port}`);
+
     return { url: `http://localhost:${port}`, server: oAuthServer };
   }
 
   return new Promise<{ url: string; server: Server }>(resolve => {
-    const server = createServer((req, res) => {
+    const server = createServer(async (req, res) => {
       const query = new URL(req.url || '', `http://localhost:${port}`)
         .searchParams;
 
@@ -118,8 +118,14 @@ const createOAuthServer = async () => {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
         res.end('OpenID login successful! You can close this tab.');
 
-        // Clean up the server after receiving the code
-        server.close();
+        // Clean up the server after receiving the code. Wait for the listener
+        // to fully release port 3010 before clearing the reference, otherwise a
+        // subsequent start-oauth-server request could try to bind the port
+        // while this listener is still shutting down.
+        await new Promise<void>(closeResolve => {
+          server.close(() => closeResolve());
+        });
+        oAuthServer = null;
       } else {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('No token received.');
@@ -127,6 +133,7 @@ const createOAuthServer = async () => {
     });
 
     server.listen(port, '127.0.0.1', () => {
+      logMessage('info', `OAuth server started on port: ${port}`);
       resolve({ url: `http://localhost:${port}`, server });
     });
   });
@@ -223,7 +230,7 @@ async function startSyncServer() {
 
     const syncServerConfig = {
       port: globalPrefs.syncServerConfig?.port || 5007,
-      hostname: 'localhost',
+      hostname: '127.0.0.1',
       ACTUAL_SERVER_DATA_DIR: path.resolve(
         process.env.ACTUAL_DATA_DIR!,
         'actual-server',
@@ -240,12 +247,11 @@ async function startSyncServer() {
       ),
     };
 
-    const serverPath = path.join(
-      // require.resolve will recursively search up the workspace for the module
-      path.dirname(require.resolve('@actual-app/sync-server/package.json')),
-      'build',
-      'app.js',
+    // require.resolve will recursively search up the workspace for the module
+    const syncServerRoot = path.dirname(
+      require.resolve('@actual-app/sync-server/package.json'),
     );
+    const serverPath = path.join(syncServerRoot, 'build/app.js');
 
     const webRoot = path.join(
       // require.resolve will recursively search up the workspace for the module
@@ -323,7 +329,10 @@ async function startSyncServer() {
 
     return await Promise.race([syncServerPromise, syncServerTimeout]); // Either the server has started or the timeout is reached
   } catch (error) {
-    logMessage('error', `Sync-Server: Error starting sync server: ${error}`);
+    logMessage(
+      'error',
+      `Sync-Server: Error starting sync server: ${String(error)}`,
+    );
   }
 }
 
@@ -354,6 +363,17 @@ async function createWindow() {
   });
 
   win.setBackgroundColor('#E8ECF0');
+
+  if (isPlaywrightTest) {
+    // Append a 'playwright' marker to the default Electron userAgent so
+    // navigator.userAgent-based checks in the renderer (Platform.isPlaywright,
+    // environment.isElectron) both light up. Replacing the UA with bare
+    // 'playwright' (as playwright.config.ts does for chromium launches) would
+    // strip the 'Electron' substring that isElectron() relies on.
+    win.webContents.setUserAgent(
+      `${win.webContents.getUserAgent()} playwright`,
+    );
+  }
 
   if (isDev) {
     win.webContents.openDevTools();
@@ -420,8 +440,10 @@ async function createWindow() {
   clientWin = win;
 
   // Execute queued logs - displaying them in the client window
-  queuedClientWinLogs.map((log: string) =>
-    win.webContents.executeJavaScript(log),
+  void Promise.all(
+    queuedClientWinLogs.map((log: string) =>
+      win.webContents.executeJavaScript(log),
+    ),
   );
 
   queuedClientWinLogs = [];
@@ -530,7 +552,7 @@ export type GetBootstrapDataPayload = {
 
 ipcMain.on('get-bootstrap-data', event => {
   const payload: GetBootstrapDataPayload = {
-    version: app.getVersion(),
+    version: isPlaywrightTest ? '99.9.9' : app.getVersion(),
     isDev,
   };
 
@@ -648,18 +670,19 @@ ipcMain.handle(
         );
       }
 
-      if (!(await exists(newDirectory))) {
+      if (!fs.existsSync(newDirectory)) {
         throw new Error('The destination directory does not exist');
       }
 
-      await copy(currentBudgetDirectory, newDirectory, {
-        overwrite: true,
+      await cp(currentBudgetDirectory, newDirectory, {
+        force: true,
         preserveTimestamps: true,
+        recursive: true,
       });
     } catch (error) {
       logMessage(
         'error',
-        `There was an error moving your directory:  ${error}`,
+        `There was an error moving your directory:  ${String(error)}`,
       );
       throw error;
     }
@@ -668,7 +691,10 @@ ipcMain.handle(
       await promiseRetry(
         async retry => {
           try {
-            return await remove(currentBudgetDirectory);
+            return await rm(currentBudgetDirectory, {
+              recursive: true,
+              force: true,
+            });
           } catch (error) {
             logMessage(
               'info',
@@ -685,7 +711,7 @@ ipcMain.handle(
       // This call needs to succeed to allow the user to continue using the app with the files in the new location.
       logMessage(
         'error',
-        `There was an error removing the old directory: ${error}`,
+        `There was an error removing the old directory: ${String(error)}`,
       );
     }
   },
