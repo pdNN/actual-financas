@@ -36,7 +36,12 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/actual-server
+  # Fixo em minúsculas, não derivado de github.repository_owner ("pdNN"):
+  # nomes de repositório Docker precisam ser lowercase, e a imagem quebrou o
+  # primeiro deploy pós-merge por causa disso ("repository name must be
+  # lowercase"). Também mantém consistência com a tag fixa em
+  # infra/docker-compose.prod.yml (ghcr.io/pdnn/actual-server).
+  IMAGE_NAME: pdnn/actual-server
   ZONE: us-east1-b
   INSTANCE: actual-financas
   PROJECT: actual-financas
