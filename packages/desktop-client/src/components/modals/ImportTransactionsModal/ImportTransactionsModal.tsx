@@ -223,6 +223,10 @@ export function ImportTransactionsModal({
   >('parsing');
   // >>> CUSTOM: AI classification state
   const [isClassifyingAi, setIsClassifyingAi] = useState(false);
+  // Desligada por padrão: o botão só aparece se o servidor disser que a função
+  // foi ligada de propósito E está credenciada. Ver
+  // specs/001-desligar-padrao-enriquecimento/spec.md
+  const [isAiAvailable, setIsAiAvailable] = useState(false);
   // <<< CUSTOM
   const [error, setError] = useState<{
     parsed: boolean;
@@ -632,6 +636,31 @@ export function ImportTransactionsModal({
 
     setTransactions(newTransactions);
   }
+
+  // >>> CUSTOM: consulta o gate de habilitação uma vez, ao abrir o modal
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const result = await send('ai-status');
+        if (!cancelled) {
+          setIsAiAvailable(result?.data?.configured === true);
+        }
+      } catch {
+        // Servidor antigo ou indisponível: mantém desligado. O padrão seguro
+        // aqui é esconder, não mostrar.
+        if (!cancelled) {
+          setIsAiAvailable(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // <<< CUSTOM
 
   // >>> CUSTOM: AI classification handler
   async function onClassifyWithAI() {
@@ -1426,33 +1455,38 @@ export function ImportTransactionsModal({
               justifyContent: 'space-between',
             }}
           >
-            {/* >>> CUSTOM: AI classification button */}
-            <View
-              style={{
-                alignSelf: 'flex-start',
-                flexDirection: 'row',
-                alignItems: 'center',
-              }}
-            >
-              <ButtonWithLoading
-                isDisabled={
-                  transactions.length === 0 ||
-                  loadingState === 'importing' ||
-                  loadingState === 'parsing'
-                }
-                isLoading={isClassifyingAi}
-                onPress={() => {
-                  void onClassifyWithAI();
-                }}
+            {/* >>> CUSTOM: AI classification button — só quando habilitado.
+                O <View /> vazio preserva o `space-between` do container: sem
+                ele, o botão de importar escorregaria para a esquerda. */}
+            {!isAiAvailable && <View />}
+            {isAiAvailable && (
+              <View
                 style={{
-                  backgroundColor: isClassifyingAi ? undefined : '#7c3aed',
-                  color: 'white',
-                  borderColor: '#7c3aed',
+                  alignSelf: 'flex-start',
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
               >
-                ✨ Classificar com IA
-              </ButtonWithLoading>
-            </View>
+                <ButtonWithLoading
+                  isDisabled={
+                    transactions.length === 0 ||
+                    loadingState === 'importing' ||
+                    loadingState === 'parsing'
+                  }
+                  isLoading={isClassifyingAi}
+                  onPress={() => {
+                    void onClassifyWithAI();
+                  }}
+                  style={{
+                    backgroundColor: isClassifyingAi ? undefined : '#7c3aed',
+                    color: 'white',
+                    borderColor: '#7c3aed',
+                  }}
+                >
+                  <Trans>✨ Classify with AI</Trans>
+                </ButtonWithLoading>
+              </View>
+            )}
             {/* <<< CUSTOM */}
             {/*Submit Button */}
             <View
