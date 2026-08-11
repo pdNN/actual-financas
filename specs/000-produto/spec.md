@@ -75,18 +75,29 @@ sistema, e ninguém precisou lembrar de digitar transação manualmente todo dia
 3. **Dado** que uma transação já foi importada antes, **Quando** ela aparece de
    novo em outro arquivo, **Então** o sistema a reconhece e não duplica.
 
-**Abordagens em avaliação** — a escolha entre elas é decisão do `/speckit.plan`
-da feature correspondente, não desta spec:
+**Abordagens** — reavaliadas em 2026-08-10 depois de analisar faturas reais do
+Itaú e o código da integração Pluggy. A leitura anterior estava errada em dois
+pontos, corrigidos aqui:
 
-| Abordagem                                   | A favor                                                                                                               | Contra                                                                        |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **Import de fatura/extrato** (OFX/CSV/PDF)  | Já parcialmente implementado; sem dependência externa paga; funciona para cartão de crédito, que é onde está o volume | Exige um ritual mensal; PDF de fatura exige OCR, que não cabe na VM           |
-| **Lançamento rápido no celular**            | Menor atrito diário; captura despesa em dinheiro e Pix, que não aparecem em fatura                                    | Depende de hábito; precisa de UI muito boa no mobile                          |
-| **Sync automático** (Pluggy / Open Finance) | Atrito zero de verdade; já existe `app-pluggyai` no upstream                                                          | Custo mensal do Pluggy; exige credenciais bancárias; mais superfície de risco |
+| Abordagem                                   | A favor                                                                                                                                                                 | Contra                                                                                                                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Sync automático** (Pluggy / Open Finance) | Atrito zero; **grátis** para uso pessoal (Meu Pluggy, sem prazo); `app-pluggyai` do upstream já corrige data de parcela e sinal de cartão, e traz nome de lojista limpo | Integração marcada como experimental no Actual; consentimento vence e precisa ser renovado; histórico inicial costuma ser limitado                                 |
+| **Lançamento rápido no celular**            | Menor atrito diário; captura dinheiro e Pix, que não aparecem em fatura                                                                                                 | Depende de hábito; precisa de UI muito boa no mobile                                                                                                               |
+| **Import de fatura/extrato** (XLSX/OFX/CSV) | Sem dependência externa; útil para carga histórica que o Open Finance não devolve                                                                                       | Ritual mensal; **a planilha do Itaú traz a data da compra, não a da cobrança**, o que joga parcela antiga em mês fechado; descrição suja atrapalha a classificação |
 
-As três não são mutuamente exclusivas. A leitura atual é que import + lançamento
-rápido cobrem o caso real sem custo recorrente, e o sync automático é a evolução
-natural se o atrito persistir.
+**Duas correções em relação à versão anterior desta spec:**
+
+1. Dizia que o sync automático tinha "custo mensal do Pluggy". **É falso para
+   este caso**: o _Meu Pluggy_ é gratuito por tempo indeterminado para uso
+   pessoal; os planos a partir de R$ 2.500/mês valem para uso comercial.
+2. Tratava o import de fatura como o caminho mais simples. Analisando os
+   arquivos reais, ele é o **mais difícil de fazer certo** — data de parcela,
+   deduplicação de parcelas consecutivas e formato numérico ambíguo são
+   problemas que o Pluggy já resolve.
+
+Por isso a ordem inverteu: **sync automático primeiro**, lançamento rápido para
+o que não passa no cartão, e import de arquivo reduzido ao papel de carga
+histórica.
 
 ---
 
@@ -257,25 +268,39 @@ princípio correspondente.
 
 ---
 
-## Backlog de features candidatas
+## Backlog de features
 
-Registro de intenção, sem compromisso de ordem. Cada uma vira uma spec própria
-via `/speckit.specify` quando for a vez.
+Numeração real, sincronizada com o que existe em `specs/`.
 
-| #       | Feature                                                                                                                                                                                                                                                                                       | Por que importa                                                                                                                                        | Depende de |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| **001** | **Servidor MCP local do actual-financas** — expõe ao Claude Code ferramentas sobre o orçamento: listar transações sem categoria, propor e aplicar categorias em lote, criar regras nativas, gerar relatório mensal. Roda na máquina do Pedro, fora da VM, usando a assinatura Claude já paga. | Resolve custo de IA (tende a zero), tira carga da `e2-micro` e permite processamento pesado sem infraestrutura nova. Rota preferida pelo princípio IV. | —          |
-| **002** | Camada determinística de classificação — normalização de descrição, cache e geração de regras nativas a partir de acertos confirmados.                                                                                                                                                        | É o que faz a proporção de chamadas à IA cair com o tempo (CS-003). Princípio III.                                                                     | —          |
-| **003** | Refatorar `packages/sync-server/src/app-ai/app-ai.ts` para provider plugável, com few-shot do histórico e testes.                                                                                                                                                                             | Hoje o provider é Gemini hardcoded, sem teste e sem contexto do histórico do casal. Princípios IV e VII.                                               | 002        |
-| **004** | Lançamento rápido de despesa no celular.                                                                                                                                                                                                                                                      | Ataca diretamente o CS-001 e a parte da História 1 que import não cobre (dinheiro e Pix).                                                              | —          |
-| **005** | Import de fatura e extrato melhorado — OFX/CSV robustos, e avaliação de PDF com OCR fora da VM.                                                                                                                                                                                               | O cartão concentra o volume de despesa.                                                                                                                | —          |
-| **006** | Detecção de transferências entre contas, parcelamentos e aportes de investimento.                                                                                                                                                                                                             | RF-008, RF-009, CS-006. Sem isso o relatório mente.                                                                                                    | 001 ou 003 |
-| **007** | Resumo mensal e insights.                                                                                                                                                                                                                                                                     | RF-010, CS-005. O valor final para a Julia.                                                                                                            | 002, 006   |
+### Entregue
+
+| #       | Feature                                                                                   | Estado                          |
+| ------- | ----------------------------------------------------------------------------------------- | ------------------------------- |
+| **001** | Desligar por padrão o enriquecimento por IA — `specs/001-desligar-padrao-enriquecimento/` | ✅ implementada, PR #3 mergeado |
+
+### Em andamento
+
+| #       | Feature                                                                                                                     | Por que importa                                                                                               |
+| ------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **002** | **Sync do cartão de crédito via Pluggy** + modelagem da conta de cartão no Actual (On Budget, pagamento como transferência) | Ataca o problema central: é o caminho de menor atrito para as despesas entrarem, e é grátis para uso pessoal. |
+
+### Candidatas
+
+| #       | Feature                                                                                                                                                                                                                         | Por que importa                                                                                           | Depende de |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------- |
+| **003** | Camada determinística de classificação — normalização de descrição, cache e geração de regras nativas a partir de acertos confirmados.                                                                                          | Faz a proporção de chamadas à IA cair com o tempo (CS-003). Princípio III.                                | 002        |
+| **004** | Reconstruir a classificação por IA com provider plugável, few-shot do histórico e testes — substitui o `app-ai.ts` desligado em `001`.                                                                                          | Hoje o provider é Gemini hardcoded, sem teste. Princípios IV e VII.                                       | 003        |
+| **005** | **Servidor MCP local** — expõe ao Claude Code ferramentas sobre o orçamento: listar transações sem categoria, aplicar categorias em lote, criar regras nativas, gerar relatório. Roda fora da VM, na assinatura Claude já paga. | Custo de IA tende a zero e tira carga da `e2-micro`. Rota preferida pelo princípio IV.                    | 003        |
+| **006** | Lançamento rápido de despesa no celular.                                                                                                                                                                                        | Ataca o CS-001 e a parte da História 1 que o cartão não cobre: dinheiro e Pix.                            | —          |
+| **007** | Carga histórica das faturas em XLSX — roda uma vez, para o período que o Open Finance não devolver.                                                                                                                             | Escopo bem menor que um importador recorrente: intervalo fechado, tolera imperfeição, sem dedup complexa. | 002        |
+| **008** | Detecção de transferências entre contas, parcelamentos e aportes de investimento.                                                                                                                                               | RF-008, RF-009, CS-006. Sem isso o relatório mente.                                                       | 002        |
+| **009** | Resumo mensal e insights.                                                                                                                                                                                                       | RF-010, CS-005. O valor final para a Julia.                                                               | 003, 008   |
 
 ---
 
 ## Histórico
 
-| Data       | Mudança                                                                                                                                                               |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-09 | Criação. Consolida o conteúdo de `.cursor/rules/instructions.mdc`, `.github/copilot-instructions.md` e `.windsurf/rules/instructions.md`, removidos na mesma mudança. |
+| Data       | Mudança                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-09 | Criação. Consolida o conteúdo de `.cursor/rules/instructions.mdc`, `.github/copilot-instructions.md` e `.windsurf/rules/instructions.md`, removidos na mesma mudança.                                                                                                                                                                                                                                          |
+| 2026-08-10 | Duas correções factuais após analisar faturas reais do Itaú e o código do `app-pluggyai`: o sync automático **não** tem custo mensal para uso pessoal, e o import de arquivo é mais difícil de acertar do que se supunha. A ordem das abordagens inverteu. Backlog renumerado para bater com `specs/` — `001` era descrito como servidor MCP, mas a feature entregue com esse número foi o desligamento da IA. |

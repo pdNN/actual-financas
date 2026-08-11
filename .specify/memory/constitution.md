@@ -1,13 +1,23 @@
 <!--
 Relatório de Impacto de Sincronização
-- Versão: (inexistente) → 1.0.0
-- Ratificação inicial da constituição do actual-financas.
-- Princípios adicionados: I a VIII.
-- Seções adicionadas: Restrições do Produto, Fluxo de Desenvolvimento, Governança.
-- Origem: consolida e substitui .cursor/rules/instructions.mdc,
-  .github/copilot-instructions.md e .windsurf/rules/instructions.md, removidos
-  nesta mesma mudança.
+- Versão: 1.0.0 → 1.1.0
+- Princípios modificados: VIII — Privacidade explícita. Passa a distinguir
+  "provider de IA" de "agregador de Open Finance regulado", que antes não
+  estava coberto. A redação anterior proibia enviar número de conta e de
+  cartão a qualquer terceiro, o que impediria usar Open Finance mesmo com
+  consentimento dado no próprio banco.
+- Seções adicionadas: nenhuma.
+- Seções removidas: nenhuma.
+- Motivo: a avaliação do Pluggy.ai para sincronizar o cartão de crédito
+  esbarrou num caso que a constituição não previa. Emenda antes da feature,
+  para virar regra em vez de exceção.
+- Propagação: CLAUDE.md (tabela de restrições) e AGENTS.md (§10).
 - Pendências: nenhuma.
+
+Histórico anterior
+- (inexistente) → 1.0.0: ratificação inicial. Princípios I a VIII. Consolidou e
+  substituiu .cursor/rules/instructions.mdc, .github/copilot-instructions.md e
+  .windsurf/rules/instructions.md.
 -->
 
 # Constituição — actual-financas
@@ -163,21 +173,53 @@ O alvo de produção é uma `e2-micro`: 1GB de RAM compartilhada, com limite de
 Este é o dinheiro de duas pessoas reais. O que sai da máquina é decisão
 consciente, não acidente.
 
-**PODE** ser enviado a provider externo de IA:
+Terceiros se dividem em **duas categorias**, com regras diferentes. Confundi-las
+foi o erro da versão 1.0.0 desta constituição.
+
+#### a) Provider de IA (Gemini, Claude, DeepSeek, modelo local…)
+
+**PODE** ser enviado:
 descrição da transação, valor, data, nome da categoria, nome do payee.
 
 **NÃO DEVE** ser enviado, nunca:
 número de conta, número de cartão, CPF, credencial bancária, token de sessão,
 senha, e-mail dos usuários.
 
+A regra aqui é estreita de propósito: o provider de IA não precisa saber de quem
+é a conta para adivinhar uma categoria.
+
+#### b) Agregador de Open Finance regulado (Pluggy, Belvo…)
+
+Categoria diferente, porque o modelo de confiança é diferente: o consentimento é
+dado **no próprio banco**, o agregador é autorizado pelo Banco Central, e o
+acesso é revogável pelo usuário a qualquer momento.
+
+**PODE**: dados de conta, cartão, saldo, extrato e fatura transitarem pelo
+agregador e ficarem armazenados nele, enquanto durar o consentimento.
+
+**NÃO DEVE**, em nenhuma hipótese:
+senha do banco, token de acesso ao banco ou qualquer credencial bancária
+passarem pelo nosso servidor, pelo nosso código ou pelo nosso repositório. A
+autenticação acontece entre o usuário e o banco — nunca por aqui.
+
 Além disso:
 
-- Chave de API vive apenas no servidor (variável de ambiente vinda do Secret
-  Manager). NUNCA no cliente, nunca no repositório.
+- O agregador em uso, o escopo do consentimento e **quando ele vence** DEVEM
+  estar declarados em `infra/README.md`.
+- O consentimento DEVE ser revogável sem depender de nós: pelo app do banco ou
+  pelo painel do agregador.
+- Sincronizar NÃO DEVE ser condição para usar o sistema. Quem preferir lançar à
+  mão continua conseguindo.
+
+#### Vale para as duas categorias
+
+- Chave de API e credencial de integração vivem apenas no servidor (variável de
+  ambiente vinda do Secret Manager, ou cofre do próprio servidor). NUNCA no
+  cliente, nunca no repositório.
 - Log de produção NÃO DEVE conter descrição de transação, valor ou identificador
   de usuário.
-- O provider de IA em uso DEVE estar declarado em `infra/README.md`, para que
-  ambos os usuários saibam para onde os dados vão.
+- Todo terceiro em uso DEVE estar declarado em `infra/README.md`, para que ambos
+  os usuários saibam para onde os dados vão.
 
 ---
 
@@ -231,4 +273,4 @@ fragmentaria a fonte de verdade.
   avaliada e rejeitada. Violação não justificada bloqueia a implementação.
 - Quem aprova spec, plano e emendas: Pedro.
 
-**Versão**: 1.0.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-08-09
+**Versão**: 1.1.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-08-10
