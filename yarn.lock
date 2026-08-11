@@ -21747,13 +21747,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pluggy-sdk@npm:^0.89.0":
-  version: 0.89.0
-  resolution: "pluggy-sdk@npm:0.89.0"
+"pluggy-sdk@npm:^0.90.0":
+  version: 0.90.0
+  resolution: "pluggy-sdk@npm:0.90.0"
   dependencies:
     got: "npm:11.8.6"
     jsonwebtoken: "npm:9.0.3"
-  checksum: 10/e58174aaa7e441929e9fed4636c2939792efebac39cc5e46dbfcfbb122f64a633dc66e3fc5a7ef63c4805ae14c437037ceac2e13bd2a6ed8fe171463743ce12a
+  checksum: 10/db716eec0c154b12c899e3070d2760b66f935095d20b40da496c2ba11e9a5a3d62caa964e5f62f81ae18f8a8966039600dc2df31fa0a5e2c3c05b28913c12489
   languageName: node
   linkType: hard
 
