@@ -96,12 +96,12 @@ resource "google_service_account" "app_deployer" {
 }
 
 # Escopo mínimo para "entrar na VM e rodar docker compose":
-# - osLogin dá o acesso SSH gerenciado por IAM (sem chave em metadata);
+# - o acesso SSH gerenciado por IAM (OS Login) é concedido só na instância,
+#   logo abaixo, e não no projeto;
 # - tunnelResourceAccessor permite o túnel IAP, já que o SSH não fica aberto;
 # - compute.viewer é necessário para o gcloud descobrir a instância.
 resource "google_project_iam_member" "app_deployer" {
   for_each = toset([
-    "roles/compute.osLogin",
     "roles/iap.tunnelResourceAccessor",
     "roles/compute.viewer",
   ])
@@ -119,6 +119,17 @@ resource "google_service_account_iam_member" "app_deployer_acts_as_vm" {
   service_account_id = google_service_account.vm.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.app_deployer.email}"
+}
+
+# O deploy roda `sudo` na VM (escreve em /opt/actual e chama o docker), e o OS
+# Login só concede sudo com osAdminLogin. É root na VM, por isso fica restrito
+# a esta instância, e o único caminho até ela é o WIF do repositório + IAP.
+resource "google_compute_instance_iam_member" "app_deployer_os_admin_login" {
+  project       = var.project_id
+  zone          = google_compute_instance.actual.zone
+  instance_name = google_compute_instance.actual.name
+  role          = "roles/compute.osAdminLogin"
+  member        = "serviceAccount:${google_service_account.app_deployer.email}"
 }
 
 resource "google_service_account_iam_member" "wif_app_deployer" {
