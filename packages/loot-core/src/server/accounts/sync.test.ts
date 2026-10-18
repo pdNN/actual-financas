@@ -8,6 +8,7 @@ import { setSyncingMode } from '#server/sync';
 import { handlers } from '#server/tests/mockSyncServer';
 import { insertRule, loadRules } from '#server/transactions/transaction-rules';
 import * as monthUtils from '#shared/months';
+import type { ImportTransactionsOpts } from '#types/api-handlers';
 import type { SyncedPrefs } from '#types/prefs';
 
 import { app as accountsApp } from './app';
@@ -103,6 +104,123 @@ describe('Account sync', () => {
     );
   });
 
+  test('reconcile title-cases the payee name by default', async () => {
+    const { id } = await prepareDatabase();
+
+    await reconcileTransactions(id, [
+      {
+        date: '2020-01-02',
+        payee_name: 'Nintendo Store New York NY',
+        amount: 4133,
+      },
+    ]);
+
+    const payees = await getAllPayees();
+    expect(payees.length).toBe(1);
+    expect(payees[0].name).toBe('Nintendo Store New York Ny');
+
+    const transactions = await getAllTransactions();
+    expect(transactions[0].imported_payee).toBe('Nintendo Store New York Ny');
+  });
+
+  test('transactions-import title-cases the payee name by default', async () => {
+    const { id } = await prepareDatabase();
+
+    await accountsApp.handlers['transactions-import']({
+      accountId: id,
+      transactions: [
+        {
+          account: id,
+          date: '2020-01-02',
+          payee_name: 'Nintendo Store New York NY',
+          amount: 4133,
+        },
+      ],
+      isPreview: false,
+    });
+
+    const payees = await getAllPayees();
+    expect(payees.length).toBe(1);
+    expect(payees[0].name).toBe('Nintendo Store New York Ny');
+
+    const transactions = await getAllTransactions();
+    expect(transactions[0].imported_payee).toBe('Nintendo Store New York Ny');
+  });
+
+  test("transactions-import keeps the payee name with payeeNameNormalization 'original'", async () => {
+    const { id } = await prepareDatabase();
+
+    await accountsApp.handlers['transactions-import']({
+      accountId: id,
+      transactions: [
+        {
+          account: id,
+          date: '2020-01-02',
+          payee_name: 'Nintendo Store New York NY',
+          amount: 4133,
+        },
+      ],
+      isPreview: false,
+      opts: { payeeNameNormalization: 'original' },
+    });
+
+    const payees = await getAllPayees();
+    expect(payees.length).toBe(1);
+    expect(payees[0].name).toBe('Nintendo Store New York NY');
+
+    const transactions = await getAllTransactions();
+    expect(transactions[0].imported_payee).toBe('Nintendo Store New York NY');
+  });
+
+  test("transactions-import trims the payee name with payeeNameNormalization 'original'", async () => {
+    const { id } = await prepareDatabase();
+
+    await accountsApp.handlers['transactions-import']({
+      accountId: id,
+      transactions: [
+        {
+          account: id,
+          date: '2020-01-02',
+          payee_name: '  Nintendo Store New York NY  ',
+          amount: 4133,
+        },
+      ],
+      isPreview: false,
+      opts: { payeeNameNormalization: 'original' },
+    });
+
+    const payees = await getAllPayees();
+    expect(payees.length).toBe(1);
+    expect(payees[0].name).toBe('Nintendo Store New York NY');
+
+    const transactions = await getAllTransactions();
+    expect(transactions[0].imported_payee).toBe('Nintendo Store New York NY');
+  });
+
+  test('transactions-import rejects an unknown payeeNameNormalization', async () => {
+    const { id } = await prepareDatabase();
+
+    await expect(
+      accountsApp.handlers['transactions-import']({
+        accountId: id,
+        transactions: [
+          {
+            account: id,
+            date: '2020-01-02',
+            payee_name: 'Nintendo Store New York NY',
+            amount: 4133,
+          },
+        ],
+        isPreview: false,
+        opts: {
+          payeeNameNormalization: 'titlecase',
+        } as unknown as ImportTransactionsOpts,
+      }),
+    ).rejects.toThrow(/payeeNameNormalization/);
+
+    expect(await getAllPayees()).toEqual([]);
+  });
+
   test('reconcile handles transactions with undefined fields', async () => {
     const { id: acctId } = await prepareDatabase();
 
@@ -190,12 +308,7 @@ describe('Account sync', () => {
     await reconcileTransactions(
       acctId,
       [{ date: '2020-01-01', imported_id: 'finid-override' }],
-      false,
-      true,
-      false,
-      true,
-      false,
-      false,
+      { reimportDeleted: false },
     );
     const transactions2 = await getAllTransactions();
     expect(transactions2.length).toBe(1);
@@ -216,12 +329,7 @@ describe('Account sync', () => {
     await reconcileTransactions(
       acctId,
       [{ date: '2020-01-01', imported_id: 'finid-override2' }],
-      false,
-      true,
-      false,
-      true,
-      false,
-      true,
+      { reimportDeleted: true },
     );
     const transactions2 = await getAllTransactions();
     expect(transactions2.length).toBe(2);
@@ -246,12 +354,7 @@ describe('Account sync', () => {
     await reconcileTransactions(
       acctId,
       [{ date: '2020-01-01', imported_id: 'finid-precedence' }],
-      false,
-      true,
-      false,
-      true,
-      false,
-      false,
+      { reimportDeleted: false },
     );
     const transactions2 = await getAllTransactions();
     expect(transactions2.length).toBe(1);
@@ -535,6 +638,119 @@ describe('Account sync', () => {
     ).toBe(-1239);
   });
 
+  test('bank sync does not fuzzy-match children of an exactly matched split', async () => {
+    const { id } = await prepareDatabase();
+
+    await db.insertTransaction({
+      id: 'split-parent',
+      account: id,
+      amount: -1000,
+      date: '2024-04-05',
+      imported_id: 'parent-provider-id',
+      is_parent: true,
+    });
+    await db.insertTransaction({
+      id: 'split-child-1',
+      account: id,
+      amount: -299,
+      date: '2024-04-05',
+      is_child: true,
+      parent_id: 'split-parent',
+    });
+    await db.insertTransaction({
+      id: 'split-child-2',
+      account: id,
+      amount: -701,
+      date: '2024-04-05',
+      is_child: true,
+      parent_id: 'split-parent',
+    });
+
+    const result = await reconcileTransactions(
+      id,
+      [
+        {
+          transactionId: 'new-provider-id',
+          transactionAmount: { amount: '-2.99' },
+          date: '2024-04-07',
+          payeeName: 'New merchant',
+          booked: true,
+        },
+        {
+          transactionId: 'parent-provider-id',
+          transactionAmount: { amount: '-10.00' },
+          date: '2024-04-05',
+          payeeName: 'Split merchant',
+          booked: true,
+        },
+      ],
+      { isBankSyncAccount: true, strictIdChecking: false },
+    );
+
+    expect(result.added).toHaveLength(1);
+
+    const transactions = await getAllTransactions();
+    expect(
+      transactions.find(transaction => transaction.id === 'split-child-1')
+        .imported_id,
+    ).toBeNull();
+    expect(
+      transactions.find(
+        transaction => transaction.imported_id === 'new-provider-id',
+      ),
+    ).toMatchObject({ amount: -299, parent_id: null });
+  });
+
+  test('bank sync can fuzzy-match children of an unmatched split', async () => {
+    const { id } = await prepareDatabase();
+
+    await db.insertTransaction({
+      id: 'split-parent',
+      account: id,
+      amount: -1000,
+      date: '2024-04-05',
+      is_parent: true,
+    });
+    await db.insertTransaction({
+      id: 'split-child-1',
+      account: id,
+      amount: -299,
+      date: '2024-04-05',
+      is_child: true,
+      parent_id: 'split-parent',
+    });
+    await db.insertTransaction({
+      id: 'split-child-2',
+      account: id,
+      amount: -701,
+      date: '2024-04-05',
+      is_child: true,
+      parent_id: 'split-parent',
+    });
+
+    const result = await reconcileTransactions(
+      id,
+      [
+        {
+          transactionId: 'child-provider-id',
+          transactionAmount: { amount: '-2.99' },
+          date: '2024-04-07',
+          payeeName: 'Child merchant',
+          booked: true,
+        },
+      ],
+      { isBankSyncAccount: true, strictIdChecking: false },
+    );
+
+    expect(result.added).toHaveLength(0);
+
+    const transactions = await getAllTransactions();
+    expect(
+      transactions.find(transaction => transaction.id === 'split-child-1')
+        .imported_id,
+    ).toBe('child-provider-id');
+  });
+
   test(
     'given an imported tx with no imported_id, ' +
       'when using fuzzy search V2, existing transaction has an imported_id, matches amount, and is within 7 days of imported tx, ' +
@@ -622,8 +838,7 @@ describe('Account sync', () => {
             imported_id: 'something-else-entirely',
           },
         ],
-        false,
-        false,
+        { strictIdChecking: false },
       );
 
       payees = await getAllPayees();
