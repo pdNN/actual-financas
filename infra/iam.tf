@@ -111,6 +111,16 @@ resource "google_project_iam_member" "app_deployer" {
   member  = "serviceAccount:${google_service_account.app_deployer.email}"
 }
 
+# `gcloud compute ssh` numa instância que roda com uma SA exige
+# iam.serviceAccounts.actAs sobre ESSA SA — sem isto o deploy falha com
+# PERMISSION_DENIED antes de enviar qualquer arquivo. Concedido só na SA da VM,
+# nunca no projeto, para o deployer não poder agir como as outras SAs.
+resource "google_service_account_iam_member" "app_deployer_acts_as_vm" {
+  service_account_id = google_service_account.vm.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.app_deployer.email}"
+}
+
 resource "google_service_account_iam_member" "wif_app_deployer" {
   service_account_id = google_service_account.app_deployer.name
   role               = "roles/iam.workloadIdentityUser"
