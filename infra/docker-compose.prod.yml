@@ -1,3 +1,24 @@
+# >>> CUSTOM: actual-financas — logs dos containers no Cloud Logging
+# Driver `gcplogs` do próprio dockerd: não há agente extra, então o custo de
+# memória na e2-micro é desprezível (o Ops Agent, com Fluent Bit + OTel
+# Collector, consome centenas de MB e não cabe). Projeto e instância são
+# detectados pelo metadata server; a autorização vem da SA da VM
+# (roles/logging.logWriter, ver iam.tf).
+#   - non-blocking: se o Cloud Logging cair, o container segue servindo e
+#     descarta o excedente em vez de travar a escrita no stdout.
+#   - cache-*: `docker logs` (usado pelo deploy.sh no rollback) continua
+#     funcionando por um cache local, com teto de disco.
+# O access log do Caddy vai para arquivo (ver Caddyfile), não para o stdout —
+# portanto IP e caminho das requisições NÃO são enviados ao GCP (princípio VIII).
+x-logging: &gcp-logging
+  driver: gcplogs
+  options:
+    mode: non-blocking
+    max-buffer-size: 4m
+    cache-max-size: 10m
+    cache-max-file: '2'
+# <<< CUSTOM
+
 services:
   actual:
     # Tag imutável (SHA do commit), injetada pelo deploy.sh. O default `edge`
@@ -6,6 +27,7 @@ services:
     image: ghcr.io/pdnn/actual-server:${ACTUAL_IMAGE_TAG:-edge}
     container_name: actual-budget
     restart: always
+    logging: *gcp-logging
     # Non-sensitive config — versioned here. Sensitive secrets in .env via Secret Manager.
     environment:
       ACTUAL_PORT: '5006'
@@ -49,6 +71,7 @@ services:
     image: caddy:2-alpine
     container_name: caddy
     restart: always
+    logging: *gcp-logging
     ports:
       - '80:80'
       - '443:443'

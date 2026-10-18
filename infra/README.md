@@ -177,6 +177,33 @@ docker logs actual-budget --tail 100 -f
 docker logs caddy --tail 100 -f
 ```
 
+Os containers `actual-budget` e `caddy` também enviam stdout/stderr ao **Cloud
+Logging** pelo driver `gcplogs` do Docker (configurado no
+`docker-compose.prod.yml`). Sem agente extra — o Ops Agent não cabe na `e2-micro`.
+A autorização vem da SA da VM (`roles/logging.logWriter`).
+
+```bash
+# erros dos containers nas últimas 24h
+gcloud logging read 'resource.type="gce_instance" AND severity>=ERROR' \
+  --project=actual-financas --freshness=1d --limit=50
+
+# só o servidor Actual
+gcloud logging read 'logName="projects/actual-financas/logs/gcplogs-docker-driver" AND jsonPayload.container.name="/actual-budget"' \
+  --project=actual-financas --freshness=1d
+```
+
+- O log entra com `severity` ERROR para stderr e INFO para stdout; o Actual
+  escreve texto simples, então filtre também por `jsonPayload.message`.
+- O access log do Caddy vai para arquivo (`/data/access.log`), **não** para o
+  Cloud Logging: tem IP e caminho de requisição (princípio VIII).
+- `mode: non-blocking` com buffer de 4 MB: se o Cloud Logging falhar, o container
+  segue servindo e descarta o excedente. `docker logs` continua funcionando por
+  cache local de até 20 MB por container.
+- O driver só vale para container **criado** depois da mudança; o próximo
+  `deploy.sh` roda `compose up -d`, que recria `actual` e `caddy` (a config deles
+  mudou). Isso causa uns segundos de indisponibilidade do Caddy.
+- Retenção padrão do bucket `_Default`: 30 dias, dentro da cota gratuita (50 GiB/mês).
+
 ### Backup e restauração
 
 ```bash
