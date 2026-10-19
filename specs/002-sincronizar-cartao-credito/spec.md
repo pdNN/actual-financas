@@ -1,8 +1,8 @@
 # Especificação: Sincronizar o cartão de crédito via Open Finance
 
-**Branch**: `002-sincronizar-cartao-credito`
+**Branch**: `002-sync-cartao-open-finance`
 **Criada em**: 2026-08-10
-**Status**: Rascunho
+**Status**: Validada em produção (2026-10-19) — falta registrar a conferência de CS-003 e CS-004
 **Entrada**: Descrição do usuário: "Sincronizar cartão de crédito do Itaú via Pluggy Open Finance"
 
 ---
@@ -241,3 +241,18 @@ de falhar de forma obscura.
 - **Princípio VII — teste para lógica custom**: se a feature se resolver só com
   configuração, não há lógica custom nova a testar. Qualquer código próprio que
   o plano introduzir DEVE vir com teste.
+
+---
+
+## Registro de validação
+
+- **2026-10-18 — Falha encontrada e corrigida.** O primeiro sync em produção
+  falhou com `410 Gone / ENDPOINT_DEPRECATED`: o `pluggy-sdk@0.89.0`, declarado
+  pelo upstream (inclusive na 26.10.0), chama o endpoint v1 de transações,
+  aposentado pelo Pluggy. Correção: override aditivo `pluggy-sdk ^0.92.0` na
+  raiz (PR #9), versão que o upstream já adotou depois da 26.10.0. O override
+  fica redundante quando a próxima release do upstream chegar.
+- **2026-10-19 — Sync validado em produção** pelo Pedro, com o Meu Pluggy, após
+  o deploy do merge com o upstream 26.10.0 e do fix acima, incluindo a
+  conferência contra a fatura. CS-003 (parcela no mês da cobrança) e CS-004
+  (sem duplicar) devem ser registrados aqui quando conferidos.
