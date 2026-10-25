@@ -37,6 +37,9 @@
 - **Marcadores**: os 3 foram respondidos pelo Pedro em 2026-10-25 e registrados em
   _Clarificações_ na spec: 24h (RF-023), teto de R$ 20/mês (RF-024), Julia já
   nesta versão (RF-027). Nenhum pendente.
+- **Ampliação de escopo (2026-10-25)**: pedido do Pedro de funcionar em qualquer
+  provedor de IA → RF-028 e CS-012; o item sobre outros clientes saiu de
+  "bônus" e passou a requisito.
 - **Menções técnicas deliberadas**: "Chaveiro", "token de sessão", "login Google" e
   "OAuth" aparecem apenas em _Contexto_ e _Premissas_, como fatos herdados da `005`
   (Emenda D-1) e como restrição do cliente Claude para conectores remotos — não

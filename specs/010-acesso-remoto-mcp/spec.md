@@ -3,7 +3,7 @@
 **Branch**: `010-acesso-remoto-mcp`
 **Criada em**: 2026-10-25
 **Status**: Rascunho — esclarecimentos respondidos em 2026-10-25; pronta para `/speckit.plan`
-**Entrada**: Descrição do usuário: "Quero usar o assistente financeiro (a ponte MCP somente leitura da spec 005) também do celular, configurando um conector no Claude (claude.ai e app), com credenciais fáceis."
+**Entrada**: Descrição do usuário (ampliada em 2026-10-25 — ver _Clarificações_): "Quero usar o assistente financeiro (a ponte MCP somente leitura da spec 005) também do celular, configurando um conector no Claude (claude.ai e app), com credenciais fáceis."
 
 ---
 
@@ -271,6 +271,11 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
   respostas) DEVE estar declarado em `infra/README.md`.
 - **RF-027**: A Julia DEVE conseguir ter o próprio acesso, independente do do
   Pedro, já nesta versão.
+- **RF-028**: O acesso DEVE seguir o **padrão aberto** de conectores MCP remotos
+  (transporte HTTP e autorização padrão), sem lógica específica de um fornecedor de
+  IA, de modo que **qualquer cliente de IA compatível** — não só o Claude — consiga
+  conectar com o mesmo passo simples: informar o endereço, entrar com a conta e
+  autorizar. Acrescentar um cliente novo NÃO DEVE exigir mudança de código.
 
 ### Entidades-Chave
 
@@ -317,6 +322,9 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
   perceptível enquanto o acesso remoto é usado, e o consumo da VM fica dentro do
   limite da constituição.
 - **CS-011**: O custo mensal adicional respeita o teto definido pelo Pedro.
+- **CS-012**: O assistente conecta e responde a uma pergunta de gasto em pelo menos
+  **dois clientes de IA de fornecedores diferentes** (o Claude e ao menos um que não
+  seja do Claude), com o mesmo procedimento de cadastro e sem alterar o servidor.
 
 ---
 
@@ -329,6 +337,11 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
 - P: Qual o teto de custo mensal adicional? → R: **até R$ 20/mês** (RF-024).
 - P: A Julia usa já nesta versão? → R: **Sim** (RF-027); a História 3 permanece no
   escopo.
+- Direcionamento adicional do Pedro (ao pedir o plano): o assistente deve ser um
+  **MCP por HTTP com autenticação**, funcionando **de forma simples em qualquer
+  provedor de IA**, e a esteira de implantação em Cloud Run pode se inspirar na que
+  ele já usa em outro repositório. → RF-028 e CS-012; a escolha de implantação segue
+  no plano.
 
 ---
 
@@ -340,8 +353,12 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
   de servidor) nem trocar a produção para senha.
 - **App nativo em loja**: o uso é pelo app do Claude, que já existe; a constituição
   veda app próprio publicado.
-- **Outros clientes de IA** além do Claude (ChatGPT, Gemini etc.). Se funcionarem
-  pelo mesmo padrão, é bônus, não requisito.
+- **Clientes de IA que não suportam autorização padrão** (só aceitam uma chave
+  fixa colada em configuração): ficam de fora. Oferecer uma "chave pessoal" como
+  alternativa seria uma decisão à parte, pesando a segurança de uma credencial
+  duradoura.
+- **Garantia de compatibilidade com todo cliente existente**: o requisito é seguir o
+  padrão aberto (RF-028) e validar com dois clientes (CS-012), não testar todos.
 - **Pessoas além do casal**: sem convidados, amigos, contador ou multi-tenant.
 - **Novas perguntas, novos dados e novas análises**: o conjunto de perguntas é o
   da `005`. Resumo automático e insights proativos são a `009`.
@@ -380,6 +397,9 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
   atual que o local.
 - **Escala**: duas pessoas, algumas dezenas de perguntas por dia. Sem requisito de
   desempenho além de resposta em segundos.
+- **Compatibilidade entre fornecedores**: cada fornecedor de IA tem o seu endereço
+  de retorno do login e o seu jeito de se registrar; o servidor aceita uma lista
+  configurável deles, sem mudar de código (RF-028).
 - **Hospedagem é decisão do plano**: nuvem com escala a zero, o Mac do Pedro com
   túnel HTTPS ou outra alternativa. Com 24h (RF-023) e teto de R$ 20/mês (RF-024), depender do Mac ligado não atende; a escolha será avaliada contra a constituição
   (princípios II, V e VIII) e contra os requisitos de segurança acima.
