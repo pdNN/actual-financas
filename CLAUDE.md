@@ -96,9 +96,13 @@ Ordem obrigatória para classificar transação:
 2. Cache de descrição normalizada.
 3. IA, só no que sobrou.
 
-Saída de IA é **sugestão revisável** — nunca grava categoria sozinha sem
-confirmação ou sem confiança acima do limiar. Todo acerto confirmado realimenta a
-camada determinística.
+A IA **pode gravar** (categorizar, lançar, editar, apagar) sem confirmação, limiar,
+teto nem desfazer impostos pelo sistema (emenda 2.0.0 ao III — "eu que comando"). A
+ordem acima vale por custo, não por desconfiança, e todo acerto confirmado
+realimenta a camada determinística. Salvaguardas mínimas e testáveis: usuário
+autenticado e autorizado, auditoria com origem (sem PII), backup diário e risco
+informado pela ferramenta (a IA decide quando perguntar). Riscos aceitos: injeção por
+texto de extrato, sem desfazer, acesso comprometido.
 
 > **A classificação por IA existente está DESLIGADA por padrão.** Ela é anterior
 > à constituição e viola os princípios III, IV e VII. O código foi mantido porque
