@@ -16,6 +16,10 @@ on:
       - 'infra/**'
       - 'sync-server.Dockerfile'
       - '.github/workflows/deploy-gce.yml'
+      # >>> CUSTOM: actual-financas — o serviço remoto (Cloud Run, spec 010) tem esteira própria
+      - '!packages/custom/**'
+      - '!infra/mcp-remoto.tf'
+      # <<< CUSTOM
   workflow_dispatch:
     inputs:
       image_tag:

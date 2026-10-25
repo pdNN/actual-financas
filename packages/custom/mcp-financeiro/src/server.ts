@@ -13,7 +13,10 @@ import {
   spendByCategory,
   uncategorizedList,
 } from './analysis.ts';
+import { describeError, InputError } from './erros.ts';
+import type { Ambiente } from './erros.ts';
 import { maskDeep, maskPii } from './mask-pii.ts';
+import { INSTRUCTIONS } from './protocol.ts';
 import type { BudgetSource } from './source.ts';
 
 const MONEY_KEYS = new Set([
@@ -61,39 +64,6 @@ const period = {
   fim: isoDate.describe('Último dia do período (AAAA-MM-DD), inclusive'),
 };
 
-class InputError extends Error {}
-
-function describeError(error: unknown): string {
-  if (error instanceof InputError) return error.message;
-  const code =
-    typeof error === 'object' && error !== null && 'code' in error
-      ? String((error as { code: unknown }).code)
-      : '';
-  const raw =
-    error instanceof Error ? `${error.name} ${code} ${error.message}` : '';
-  if (/token-expired|invalid or expired session token/i.test(raw)) {
-    return 'O token de sessão do Actual expirou ou é inválido. Gere outro e atualize o Chaveiro.';
-  }
-  if (
-    /network-failure|offline or unreachable|ECONN|ENOTFOUND|fetch failed/i.test(
-      raw,
-    )
-  ) {
-    return 'O servidor do Actual está inacessível.';
-  }
-  if (
-    /missing-key|is encrypted|decrypt|invalid-password|wrong.?password/i.test(
-      raw,
-    )
-  ) {
-    return 'O orçamento é criptografado: guarde a senha dele no Chaveiro (conta budget-password do serviço actual-financas-mcp).';
-  }
-  if (/not.?found|file-not-found/i.test(raw)) {
-    return 'Orçamento não encontrado (confira o Sync ID).';
-  }
-  return 'Falha ao consultar o orçamento do Actual.';
-}
-
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -101,12 +71,33 @@ const READ_ONLY = {
   openWorldHint: false,
 } as const;
 
-export function createFinancasServer(source: BudgetSource): McpServer {
-  const server = new McpServer({ name: 'financas', version: '0.1.0' });
+export type OpcoesServidor = {
+  /** Define o texto dos erros (o remoto não fala de Chaveiro). Padrão: local. */
+  ambiente?: Ambiente;
+};
+
+export function createFinancasServer(
+  source: BudgetSource,
+  opcoes: OpcoesServidor = {},
+): McpServer {
+  const ambiente = opcoes.ambiente ?? 'local';
+  const server = new McpServer(
+    { name: 'financas', version: '0.1.0' },
+    { instructions: INSTRUCTIONS },
+  );
 
   const respond = async (run: () => Promise<unknown>) => {
     try {
-      const data = maskDeep(addBrl(await run()));
+      const resultado = addBrl(await run());
+      const atualizadoEm = source.atualizadoEm?.() ?? null;
+      const comAtualidade =
+        atualizadoEm !== null &&
+        typeof resultado === 'object' &&
+        resultado !== null &&
+        !Array.isArray(resultado)
+          ? { ...resultado, atualizado_em: atualizadoEm }
+          : resultado;
+      const data = maskDeep(comAtualidade);
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(data) }],
       };
@@ -114,7 +105,10 @@ export function createFinancasServer(source: BudgetSource): McpServer {
       return {
         isError: true,
         content: [
-          { type: 'text' as const, text: maskPii(describeError(error)) },
+          {
+            type: 'text' as const,
+            text: maskPii(describeError(error, ambiente)),
+          },
         ],
       };
     }

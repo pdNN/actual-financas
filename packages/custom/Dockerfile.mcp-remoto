@@ -1,0 +1,25 @@
+# Imagem do serviço remoto do assistente financeiro (spec 010) para o Cloud Run.
+# Contexto de build: a RAIZ do repositório.
+#   docker build -f packages/custom/Dockerfile.mcp-remoto -t financas-mcp:local .
+#
+# Só o pacote @actual-financas/custom e suas dependências de produção entram na
+# imagem final (yarn workspaces focus). O Node >= 22.18 executa o TypeScript
+# direto (type stripping), como a ponte local da spec 005.
+
+FROM node:22-slim AS build
+WORKDIR /repo
+ENV YARN_ENABLE_TELEMETRY=0
+COPY . .
+# O Yarn vem versionado em .yarn/releases (sem corepack, sem rede para baixá-lo).
+RUN node .yarn/releases/yarn-4.17.1.cjs workspaces focus @actual-financas/custom --production
+
+FROM node:22-slim
+ENV NODE_ENV=production \
+    PORT=8080 \
+    FINANCAS_DATA_DIR=/tmp/financas-data
+WORKDIR /app
+COPY --from=build /repo/node_modules ./node_modules
+COPY --from=build /repo/packages/custom ./packages/custom
+USER node
+EXPOSE 8080
+CMD ["node", "packages/custom/mcp-financeiro/bin/servidor-remoto.mjs"]

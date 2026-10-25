@@ -204,3 +204,59 @@ describe('createFinancasServer', () => {
     expect(text).toContain('budget-password');
   });
 });
+
+describe('createFinancasServer — instruções e atualidade (spec 010)', () => {
+  async function conectarCom(
+    fonte: BudgetSource,
+    opcoes?: Parameters<typeof createFinancasServer>[1],
+  ) {
+    const server = createFinancasServer(fonte, opcoes);
+    const client = new Client({ name: 'teste', version: '0.0.0' });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(a), client.connect(b)]);
+    return client;
+  }
+
+  it('entrega o protocolo como `instructions` no initialize', async () => {
+    const client = await conectarCom(source);
+    expect(client.getInstructions()).toContain('sobra = receita − despesa');
+  });
+
+  it('acrescenta atualizado_em quando a fonte informa o instante da sincronização', async () => {
+    const client = await conectarCom({
+      ...source,
+      atualizadoEm: () => '2026-10-25T18:40:12.000Z',
+    });
+    const data = JSON.parse(
+      await call(client, 'fluxo_e_sobra', {
+        inicio: '2026-09-01',
+        fim: '2026-09-30',
+      }),
+    );
+    expect(data.atualizado_em).toBe('2026-10-25T18:40:12.000Z');
+  });
+
+  it('sem informação de sincronização (caminho local) não inventa o campo', async () => {
+    const client = await conectarCom(source);
+    const data = JSON.parse(
+      await call(client, 'fluxo_e_sobra', {
+        inicio: '2026-09-01',
+        fim: '2026-09-30',
+      }),
+    );
+    expect(data).not.toHaveProperty('atualizado_em');
+  });
+
+  it('no ambiente remoto o erro do Actual não menciona Chaveiro', async () => {
+    const quebrada: BudgetSource = {
+      ...source,
+      listAccounts: async () => {
+        throw new Error('invalid or expired session token');
+      },
+    };
+    const remoto = await conectarCom(quebrada, { ambiente: 'remoto' });
+    const local = await conectarCom(quebrada);
+    expect(await call(remoto, 'contas', {})).not.toContain('Chaveiro');
+    expect(await call(local, 'contas', {})).toContain('Chaveiro');
+  });
+});
