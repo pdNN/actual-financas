@@ -35,3 +35,13 @@ Registro de execução das tarefas de verificação de `tasks.md`.
 
 3. **Perguntar.** Abra o Claude Code na raiz do repositório e escreva: `@assistente-financeiro quanto gastamos por categoria em setembro?`
 4. **Prova da máscara (T024).** Com o orçamento de teste (quickstart, "Orçamento de teste") perguntando `@assistente-financeiro quais foram os maiores gastos de Lazer em setembro?`: a linha do `PIX JOAO` deve aparecer com `[CPF]` no lugar de `123.456.789-09`.
+
+## Teste real com o orçamento de produção (2026-10-25, sem valores no repositório)
+
+Executado por sessão assistida (Pedro autorizou), só leitura, pelo lançador com o Chaveiro.
+
+- **Conexão**: token de sessão aceito; primeira chamada ~5 s (download do orçamento), seguintes < 1 s. O orçamento tem **criptografia ponta a ponta**: sem `budget-password` no Chaveiro a mensagem era genérica. Corrigido: agora orienta guardar a senha em `budget-password` (teste em `server.test.ts`).
+- **Passou**: `contas` (16 contas, saldos), `categorias`, `gasto_por_categoria`, `comparar_periodos`, `transacoes`, `sem_categoria`, `fluxo_e_sobra`; período sem dados devolve `empty: true`; nenhum CPF/CNPJ em claro nas 500 transações mais recentes consultadas.
+- **Achados sobre os dados (não são defeito do servidor)**: o orçamento só tem duas categorias, ambas de receita, então **toda** despesa aparece como "Sem categoria". Salários e pagamentos de fatura entre contas (sem vínculo de transferência) caem como entrada/saída solta.
+- **Achado para a spec (US2/RF-006)**: `fluxo_e_sobra` calcula receita só por categoria de receita; com tudo sem categoria a receita sai R$ 0 e a "sobra" fica muito negativa. É preciso o bloco "Confiança nos dados" avisar isso, e decidir se entrada sem categoria conta como receita. Decisão pendente do Pedro.
+- **T023**: a parte de conexão e das ferramentas está verificada; a conferência ao centavo contra o relatório do Actual continua com o Pedro.

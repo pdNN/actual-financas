@@ -183,4 +183,24 @@ describe('createFinancasServer', () => {
     expect(text).not.toContain('abc-secreto');
     expect(text).not.toContain('123.456.789-09');
   });
+
+  it('orçamento criptografado sem senha orienta a guardar a senha no Chaveiro', async () => {
+    const encrypted: BudgetSource = {
+      ...source,
+      listAccounts: async () => {
+        throw Object.assign(
+          new Error('File Casinha is encrypted. Please provide a password.'),
+          { code: 'missing-key' },
+        );
+      },
+    };
+    const server = createFinancasServer(encrypted);
+    const client = new Client({ name: 't', version: '0' });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await Promise.all([server.connect(a), client.connect(b)]);
+    const result = await client.callTool({ name: 'contas', arguments: {} });
+    expect(result.isError).toBe(true);
+    const text = (result.content as { text: string }[])[0].text;
+    expect(text).toContain('budget-password');
+  });
 });
