@@ -11,7 +11,7 @@
 
 ## Completude dos Requisitos
 
-- [ ] Nenhum marcador [NECESSITA ESCLARECIMENTO] pendente
+- [x] Nenhum marcador [NECESSITA ESCLARECIMENTO] pendente
 - [x] Requisitos são testáveis e não-ambíguos
 - [x] Critérios de sucesso são mensuráveis
 - [x] Critérios de sucesso são agnósticos de tecnologia
@@ -34,12 +34,9 @@
 
 ## Notas da validação
 
-- **Marcadores pendentes (3, dentro do orçamento)** — decisões do Pedro; sem elas o
-  `/speckit.plan` não consegue escolher hospedagem:
-  1. **RF-023** — o assistente precisa responder 24h, ou aceita-se só com o Mac do
-     Pedro ligado?
-  2. **RF-024** — teto de custo mensal: R$ 0 (só free tier) ou quanto?
-  3. **RF-027** — a Julia usa já nesta versão (História 3 entra) ou só o Pedro?
+- **Marcadores**: os 3 foram respondidos pelo Pedro em 2026-10-25 e registrados em
+  _Clarificações_ na spec: 24h (RF-023), teto de R$ 20/mês (RF-024), Julia já
+  nesta versão (RF-027). Nenhum pendente.
 - **Menções técnicas deliberadas**: "Chaveiro", "token de sessão", "login Google" e
   "OAuth" aparecem apenas em _Contexto_ e _Premissas_, como fatos herdados da `005`
   (Emenda D-1) e como restrição do cliente Claude para conectores remotos — não

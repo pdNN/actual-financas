@@ -2,7 +2,7 @@
 
 **Branch**: `010-acesso-remoto-mcp`
 **Criada em**: 2026-10-25
-**Status**: Rascunho — aguardando 3 esclarecimentos do Pedro
+**Status**: Rascunho — esclarecimentos respondidos em 2026-10-25; pronta para `/speckit.plan`
 **Entrada**: Descrição do usuário: "Quero usar o assistente financeiro (a ponte MCP somente leitura da spec 005) também do celular, configurando um conector no Claude (claude.ai e app), com credenciais fáceis."
 
 ---
@@ -130,8 +130,7 @@ Como Julia, quero ter o assistente financeiro no meu celular, entrando com a
 minha própria conta, para consultar as finanças do casal sem pedir ao Pedro.
 
 **Por que essa prioridade**: a constituição prevê dois usuários, mas hoje só o
-Pedro opera o assistente (a Julia consulta pelo Actual). Depende de decisão do
-Pedro — ver esclarecimento sobre a Julia, abaixo.
+Pedro opera o assistente (a Julia consulta pelo Actual). O Pedro confirmou que ela usa já nesta versão (ver _Clarificações_).
 
 **Teste independente**: com a Julia na lista de autorizadas, ela cadastra o
 conector no próprio celular, pergunta o gasto do mês e recebe o mesmo resultado
@@ -259,24 +258,19 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
 
 **Disponibilidade, custo e operação**
 
-- **RF-023**: Sistema DEVE estar disponível pelo celular [NECESSITA ESCLARECIMENTO:
-  o assistente precisa responder a qualquer hora (24h), ou é aceitável que só
-  funcione enquanto o Mac do Pedro estiver ligado e conectado? Isso decide se
-  existe um componente sempre ligado e quanto ele custa.]
-- **RF-024**: O custo mensal adicional de operar o acesso remoto DEVE respeitar um
-  teto [NECESSITA ESCLARECIMENTO: qual o teto — R$ 0 (somente free tier, como a
-  constituição assume), ou até quanto por mês o casal aceita pagar? A constituição
-  trata sair da free tier como decisão explícita do Pedro.]
+- **RF-023**: Sistema DEVE estar disponível pelo celular **a qualquer hora (24h)**,
+  inclusive com o Mac do Pedro desligado ou fora da rede. Pequenas indisponibilidades
+  de manutenção são aceitáveis; depender do Mac ligado não é.
+- **RF-024**: O custo mensal adicional de operar o acesso remoto DEVE ser de **no
+  máximo R$ 20** (decisão do Pedro). Passar disso exige nova decisão explícita.
 - **RF-025**: Sistema NÃO DEVE degradar o uso do Actual pelo casal em produção: o
   acesso remoto não pode aumentar o consumo da VM além do que o princípio V
   permite, e esse impacto DEVE ser medido antes de a feature ser dada como pronta.
 - **RF-026**: Todo terceiro novo que passe a receber ou intermediar dados por causa
   desta feature (hospedagem, identidade, o próprio Claude como destino das
   respostas) DEVE estar declarado em `infra/README.md`.
-- **RF-027**: A Julia DEVE conseguir ter o próprio acesso, independente do do Pedro
-  [NECESSITA ESCLARECIMENTO: a Julia vai usar o assistente já nesta versão, ou
-  só o Pedro? Se só o Pedro, a História 3 sai do escopo, mas o desenho continua sem
-  impedir que ela entre depois.]
+- **RF-027**: A Julia DEVE conseguir ter o próprio acesso, independente do do
+  Pedro, já nesta versão.
 
 ### Entidades-Chave
 
@@ -326,6 +320,18 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
 
 ---
 
+## Clarificações
+
+### Sessão 2026-10-25
+
+- P: O assistente precisa responder 24h ou aceita só com o Mac ligado? → R: **24h**
+  (RF-023).
+- P: Qual o teto de custo mensal adicional? → R: **até R$ 20/mês** (RF-024).
+- P: A Julia usa já nesta versão? → R: **Sim** (RF-027); a História 3 permanece no
+  escopo.
+
+---
+
 ## Fora de Escopo
 
 - **Qualquer escrita**: categorizar, criar regra, editar ou apagar transação.
@@ -368,16 +374,14 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
 - **Rótulo do acesso**: um apelido que o casal escolhe ("celular do Pedro"). Serve
   ao registro de acesso sem violar a regra de log sem identificador de usuário
   (princípio VIII).
-- **Lista de autorizadas**: começa com o Pedro; a Julia entra conforme a decisão do
-  esclarecimento RF-027. O tamanho máximo é dois.
+- **Lista de autorizadas**: começa com o Pedro e a Julia (decisão do Pedro). O tamanho máximo é dois.
 - **Atualidade dos dados**: a mesma da `005` — reflete o orçamento da última
   sincronização — e declarada na resposta. O acesso remoto não pode ser menos
   atual que o local.
 - **Escala**: duas pessoas, algumas dezenas de perguntas por dia. Sem requisito de
   desempenho além de resposta em segundos.
 - **Hospedagem é decisão do plano**: nuvem com escala a zero, o Mac do Pedro com
-  túnel HTTPS ou outra alternativa. A escolha depende das respostas sobre
-  disponibilidade (RF-023) e custo (RF-024) e será avaliada contra a constituição
+  túnel HTTPS ou outra alternativa. Com 24h (RF-023) e teto de R$ 20/mês (RF-024), depender do Mac ligado não atende; a escolha será avaliada contra a constituição
   (princípios II, V e VIII) e contra os requisitos de segurança acima.
 - **Moeda e idioma**: BRL e pt-BR, como na `005`.
 
@@ -394,8 +398,7 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
   limitados ao que o princípio VIII-a permite (RF-013).
 - **Princípio V — Orçamento da VM**: a `e2-micro` tem 384 MB para o container. O
   plano DEVE declarar o impacto de memória e disco e provar que o acesso remoto não
-  o estoura (RF-019, RF-025). Se exigir um componente sempre ligado fora da VM, a
-  decisão de custo fica com o Pedro (RF-024).
+  o estoura (RF-019, RF-025). Um componente sempre disponível fora da VM é aceito, dentro do teto de R$ 20/mês (RF-024).
 - **Princípio II — Compatibilidade com upstream**: o plano DEVE manter todo código
   novo em diretório custom (`packages/custom/`) e não editar arquivo do upstream.
 - **Princípio VII — Teste para toda lógica custom**: autorização, expiração,
@@ -409,5 +412,4 @@ que o Pedro; o acesso dela pode ser encerrado sem afetar o do Pedro.
 - **Princípio I — Spec antes de código**: este documento. Nenhuma implementação
   começa antes de `/speckit.clarify` e `/speckit.plan`.
 - **Restrições do Produto**: "app nativo publicado em loja" e "sair da free tier
-  sem decisão explícita" são vedados — daí o app do Claude como cliente e o
-  esclarecimento sobre teto de custo.
+  sem decisão explícita" são vedados — daí o app do Claude como cliente e o teto de custo de R$ 20/mês (RF-024).
