@@ -81,6 +81,13 @@ function describeError(error: unknown): string {
   ) {
     return 'O servidor do Actual está inacessível.';
   }
+  if (
+    /missing-key|is encrypted|decrypt|invalid-password|wrong.?password/i.test(
+      raw,
+    )
+  ) {
+    return 'O orçamento é criptografado: guarde a senha dele no Chaveiro (conta budget-password do serviço actual-financas-mcp).';
+  }
   if (/not.?found|file-not-found/i.test(raw)) {
     return 'Orçamento não encontrado (confira o Sync ID).';
   }
