@@ -7,12 +7,16 @@ describe('buildPostToolUseOutput', () => {
     const output = buildPostToolUseOutput({
       hook_event_name: 'PostToolUse',
       tool_name: 'mcp__financas__actual_transactions_filter',
-      tool_response: [{ type: 'text', text: 'PIX 123.456.789-09 R$ 10,00' }],
+      tool_response: [
+        { type: 'text', text: 'PIX cartão 4539148803436467 R$ 10,00' },
+      ],
     });
     expect(output).toEqual({
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',
-        updatedToolOutput: [{ type: 'text', text: 'PIX [CPF] R$ 10,00' }],
+        updatedToolOutput: [
+          { type: 'text', text: 'PIX cartão [CARTAO] R$ 10,00' },
+        ],
       },
     });
   });

@@ -101,7 +101,7 @@
 - [x] T021 [US1] Preencher `## Protocolo de resposta` e `## Papel` em `.claude/agents/assistente-financeiro.md`: gasto por categoria e grupo (`actual_transactions_aggregate`, `excludeTransfers=true`), comparação entre períodos, formatação pt-BR/BRL, período sempre explícito, resposta "não há dados no período" (nunca zeros)
 - [x] T022 [US1] Em `.claude/agents/assistente-financeiro.md`, instruir o detalhe por categoria/estabelecimento/conta (`actual_transactions_filter`, ordenado por valor) e o tratamento de estorno e de transação dividida
 - [ ] T023 [US1] [Pedro] Executar os casos 1–4 e 11 contra o orçamento de teste e, depois, contra o real; registrar resultados e divergências em `specs/005-servidor-mcp-financeiro/verification.md` (critério CS-002: ao centavo)
-- [ ] T024 [US1] Verificar a máscara de ponta a ponta: perguntar pela transação com `CPF 123.456.789-09` e confirmar `[CPF]` na resposta; registrar em `verification.md`
+- [ ] T024 [US1] Verificar a máscara de ponta a ponta: perguntar pela transação com `CPF 123.456.789-09` e confirmar que o CPF fictício aparece (const. 1.2.0) e que `conta 12345-6` vira `conta [NUM]`; registrar em `verification.md`
 
 **Checkpoint**: História 1 funcional. É o MVP — já dá para usar no dia a dia.
 

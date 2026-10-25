@@ -15,7 +15,8 @@ dados. Ela só **lê** o orçamento do Actual.
 
 ## Campos que NUNCA devem chegar ao Claude
 
-Número de conta, número de cartão, CPF/CNPJ, identificador de sessão, senha. O
+Número de conta, número de cartão, CNPJ, identificador de sessão, senha. (O CPF
+em texto de transação pode chegar ao Claude desde a constituição 1.2.0.) O
 Actual não tem coluna dedicada a esses valores no que as ferramentas de leitura
 devolvem, mas eles podem aparecer **dentro de texto livre** (descrição
 importada, notas). Por isso a máscara de `mask-pii` olha o texto, não o campo.

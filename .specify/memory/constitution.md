@@ -19,10 +19,8 @@ Relatório de Impacto de Sincronização
 - Propagação: CLAUDE.md e AGENTS.md (tabela "Privacidade — IA");
   specs/000-produto/spec.md (RF-011); spec 005 (RF-012 e mascaramento de CPF em
   mask-pii.ts e hook-mask.ts, a remover na própria spec 005).
-- Pendências: TODO(INFRA): infra/README.md ainda diz, na linha do
-  Anthropic/Claude, que CPF/CNPJ são mascarados antes de chegar ao Claude. Deve
-  ser corrigido no mesmo momento em que o mascaramento de CPF for removido do
-  código (fora do escopo desta emenda, que não toca em infra/).
+- Pendências: nenhuma. A linha do Anthropic/Claude em infra/README.md e a
+  máscara de CPF (mask-pii.ts) foram ajustadas no PR seguinte, junto da spec 005.
 
 Histórico anterior
 - 1.0.0 → 1.1.0 (2026-08-10): VIII separa provider de IA de agregador de Open

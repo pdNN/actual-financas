@@ -3,14 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { maskDeep, maskPii } from './mask-pii';
 
 describe('maskPii', () => {
-  it('mascara CPF com pontuação', () => {
+  it('deixa o CPF passar (constituição 1.2.0, princípio VIII.a)', () => {
     expect(maskPii('PIX de 123.456.789-09 recebido')).toBe(
-      'PIX de [CPF] recebido',
+      'PIX de 123.456.789-09 recebido',
     );
-  });
-
-  it('mascara CPF só com dígitos (válido)', () => {
-    expect(maskPii('doc 12345678909 ok')).toBe('doc [CPF] ok');
+    expect(maskPii('doc 12345678909 ok')).toBe('doc 12345678909 ok');
   });
 
   it('mascara CNPJ com e sem pontuação', () => {
@@ -50,7 +47,7 @@ describe('maskPii', () => {
   });
 
   it('é idempotente', () => {
-    const once = maskPii('CPF 123.456.789-09 e cartão 4539148803436467');
+    const once = maskPii('CNPJ 12.345.678/0001-95 e cartão 4539148803436467');
     expect(maskPii(once)).toBe(once);
   });
 
@@ -64,13 +61,13 @@ describe('maskPii', () => {
 describe('maskDeep', () => {
   it('mascara toda string, preservando a estrutura', () => {
     const input = {
-      content: [{ type: 'text', text: 'CPF 123.456.789-09' }],
+      content: [{ type: 'text', text: 'CNPJ 12.345.678/0001-95' }],
       n: 7,
       ok: true,
       nested: { list: ['12.345.678/0001-95', 3] },
     };
     expect(maskDeep(input)).toEqual({
-      content: [{ type: 'text', text: 'CPF [CPF]' }],
+      content: [{ type: 'text', text: 'CNPJ [CNPJ]' }],
       n: 7,
       ok: true,
       nested: { list: ['[CNPJ]', 3] },
@@ -78,13 +75,13 @@ describe('maskDeep', () => {
   });
 
   it('não muta o original', () => {
-    const input = { text: 'CPF 123.456.789-09' };
+    const input = { text: 'CNPJ 12.345.678/0001-95' };
     maskDeep(input);
-    expect(input.text).toBe('CPF 123.456.789-09');
+    expect(input.text).toBe('CNPJ 12.345.678/0001-95');
   });
 
   it('aguenta referência circular sem lançar', () => {
-    const a: Record<string, unknown> = { text: '12345678909' };
+    const a: Record<string, unknown> = { text: '12345678000195' };
     a.self = a;
     expect(() => maskDeep(a)).not.toThrow();
   });

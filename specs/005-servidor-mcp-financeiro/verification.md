@@ -34,7 +34,7 @@ Registro de execução das tarefas de verificação de `tasks.md`.
    (Cole o token quando pedir. Se o orçamento tiver criptografia, acrescente `-a budget-password`.)
 
 3. **Perguntar.** Abra o Claude Code na raiz do repositório e escreva: `@assistente-financeiro quanto gastamos por categoria em setembro?`
-4. **Prova da máscara (T024).** Com o orçamento de teste (quickstart, "Orçamento de teste") perguntando `@assistente-financeiro quais foram os maiores gastos de Lazer em setembro?`: a linha do `PIX JOAO` deve aparecer com `[CPF]` no lugar de `123.456.789-09`.
+4. **Prova da máscara (T024).** Com o orçamento de teste (quickstart, "Orçamento de teste") perguntando `@assistente-financeiro quais foram os maiores gastos de Lazer em setembro?`: a linha do `PIX JOAO` aparece com `123.456.789-09` (CPF liberado pela constituição 1.2.0).
 
 ## Teste real com o orçamento de produção (2026-10-25, sem valores no repositório)
 
@@ -45,3 +45,7 @@ Executado por sessão assistida (Pedro autorizou), só leitura, pelo lançador c
 - **Achados sobre os dados (não são defeito do servidor)**: o orçamento só tem duas categorias, ambas de receita, então **toda** despesa aparece como "Sem categoria". Salários e pagamentos de fatura entre contas (sem vínculo de transferência) caem como entrada/saída solta.
 - **Achado para a spec (US2/RF-006)**: `fluxo_e_sobra` calcula receita só por categoria de receita; com tudo sem categoria a receita sai R$ 0 e a "sobra" fica muito negativa. É preciso o bloco "Confiança nos dados" avisar isso, e decidir se entrada sem categoria conta como receita. Decisão pendente do Pedro.
 - **T023**: a parte de conexão e das ferramentas está verificada; a conferência ao centavo contra o relatório do Actual continua com o Pedro.
+
+## Emenda da constituição 1.2.0 (2026-10-25)
+
+Pedro liberou o CPF em texto de transação para o provider de IA (PR da emenda). `mask-pii.ts` deixa de mascarar CPF; continuam mascarados CNPJ, cartão (Luhn) e conta/agência com rótulo. Testes atualizados primeiro (vermelho: `mask-pii.test.ts` e `server.test.ts`), depois o código (verde). O CPF não é gravado em log nem em arquivo do repositório; os CPFs de teste são fictícios.
