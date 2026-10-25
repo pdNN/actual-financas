@@ -113,6 +113,26 @@ resource "google_artifact_registry_repository" "mcp" {
 
 # --- Identidades ---
 
+# Papéis extras do `tf-deployer` (declarado em iam.tf) para criar o que este
+# arquivo descreve. Ficam aqui, e não em iam.tf, para não mexer no arquivo que
+# o `terraform fmt` já deixou alinhado.
+resource "google_project_iam_member" "tf_deployer_mcp" {
+  for_each = toset([
+    # Serviço Cloud Run e o invoker público dele.
+    "roles/run.admin",
+    # Repositório de imagens do serviço remoto.
+    "roles/artifactregistry.admin",
+    # Habilitar as APIs usadas pelo serviço remoto.
+    "roles/serviceusage.serviceUsageAdmin",
+    # Filtro que exclui o log de requisições do Cloud Run.
+    "roles/logging.configWriter",
+  ])
+
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.tf_deployer.email}"
+}
+
 resource "google_service_account" "mcp_runtime" {
   project      = var.project_id
   account_id   = "mcp-runtime"
