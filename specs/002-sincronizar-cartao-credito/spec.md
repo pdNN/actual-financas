@@ -2,7 +2,7 @@
 
 **Branch**: `002-sync-cartao-open-finance`
 **Criada em**: 2026-08-10
-**Status**: Validada em produção (2026-10-19) — falta registrar a conferência de CS-003 e CS-004
+**Status**: Validada em produção (2026-10-19) — CS-002 conferido; CS-003 e CS-004 pendentes de conferência
 **Entrada**: Descrição do usuário: "Sincronizar cartão de crédito do Itaú via Pluggy Open Finance"
 
 ---
@@ -253,6 +253,11 @@ de falhar de forma obscura.
   raiz (PR #9), versão que o upstream já adotou depois da 26.10.0. O override
   fica redundante quando a próxima release do upstream chegar.
 - **2026-10-19 — Sync validado em produção** pelo Pedro, com o Meu Pluggy, após
-  o deploy do merge com o upstream 26.10.0 e do fix acima, incluindo a
-  conferência contra a fatura. CS-003 (parcela no mês da cobrança) e CS-004
-  (sem duplicar) devem ser registrados aqui quando conferidos.
+  o deploy do merge com o upstream 26.10.0 e do fix acima. O Pedro confirmou a
+  conferência contra a fatura: o total do mês bate com a fatura (**CS-002
+  conferido**).
+- **Pendentes de conferência** (não confirmados individualmente até aqui):
+  - **CS-003** — parcela no mês da cobrança: **pendente de conferência**.
+  - **CS-004** — sincronizar duas vezes sem duplicar: **pendente de conferência**.
+
+  Registrar aqui, com data, quando forem conferidos.
