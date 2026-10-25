@@ -39,6 +39,8 @@
 | Limite de consultas                 | "Muitas consultas seguidas. Aguarde um minuto."                                    |
 | Parâmetro inválido                  | Mensagem de validação da ferramenta (já existe na `005`)                           |
 
+No caminho **remoto**, as mensagens desta tabela substituem as da `005` que citam o Chaveiro (a mensagem de token inválido do caminho local continua a da `005`); a escolha vem do ambiente (`src/erros.ts`).
+
 Acesso expirado/encerrado **não** chega como erro de ferramenta: é `401`, e o cliente de IA inicia a reautorização (ou mostra "reconecte o conector").
 
 ## `instructions` — o protocolo viaja com o servidor

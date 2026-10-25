@@ -35,6 +35,7 @@
       "motivoEncerramento": null, // "manual" | "todos" | "reuso-de-refresh" | "pessoa-removida"
       "refreshAtualHash": "sha256:…", // hash do refresh token vigente
       "refreshAnteriorHash": "sha256:…", // o imediatamente anterior, para detectar reuso
+      "rotacionadoEm": "2026-10-25T18:40:00Z", // instante da última rotação do refresh
     },
   },
 }
@@ -44,6 +45,7 @@
 
 - **Nunca** entram: e-mail, IP, token em claro, conteúdo de consulta, descrição, valor.
 - Um acesso é **válido** se: `estado == "ativo"`, `agora < expiraEm`, `agora < expiraAbsolutoEm`, `criadoEm >= revogadoAntesDe` (quando definido) **e** a `pessoa` ainda consta da lista de autorizadas.
+- **Tolerância a _retry_ (60 s)**: se o cliente repetir o refresh anterior por falha de rede, dentro de 60 s de `rotacionadoEm`, isso **não** é reuso — o servidor aceita e faz nova rotação (o cliente fica com o par mais novo). Passados os 60 s, apresentar o refresh anterior é **reuso** e encerra o acesso (`reuso-de-refresh`). Evita derrubar o conector por retentativa legítima sem abrir a porta a um refresh roubado e antigo.
 - **Teto**: no máximo **10** acessos `ativo` por pessoa. O 11º encerra o mais antigo sem uso (`motivo: "teto"`), em vez de recusar o login legítimo.
 - **Limpeza**: acessos `encerrado` ou expirados há > 90 dias saem do objeto na próxima escrita. Tamanho esperado: poucos KB.
 - **Escrita**: só pelo caminho de `acessos.ts`, com `ifGenerationMatch`; em conflito relê, reaplica e tenta de novo (até 5 vezes), depois falha com erro distinguível (nunca grava por cima).
@@ -121,5 +123,16 @@ Variáveis de ambiente (não secretas) e secrets (montados). **Nada disto fica n
 | `TTL_ACCESS_MIN` / `INATIVIDADE_DIAS` / `LIMITE_ABSOLUTO_DIAS` | env                   | 15 / 30 / 180                                                                                         |
 | `SYNC_MAX_IDADE_MIN`                                           | env                   | 5                                                                                                     |
 | `LIMITE_CONSULTAS_POR_MIN`                                     | env                   | 60 por acesso; `LIMITE_FALHAS_POR_MIN` = 10 por IP                                                    |
+
+**Secret (Secret Manager) → variável do serviço** (o Terraform monta cada secret na variável indicada; `financas-mcp-pessoas` é montado como **arquivo**):
+
+| Secret                                | Variável / arquivo                  |
+| ------------------------------------- | ----------------------------------- |
+| `financas-mcp-segredo`                | `SEGREDO_MESTRE`                    |
+| `financas-mcp-google-secret`          | `GOOGLE_CLIENT_SECRET`              |
+| `financas-mcp-actual-token`           | `ACTUAL_SESSION_TOKEN`              |
+| `financas-mcp-actual-sync-id`         | `ACTUAL_BUDGET_SYNC_ID`             |
+| `financas-mcp-actual-budget-password` | `ACTUAL_BUDGET_PASSWORD` (opcional) |
+| `financas-mcp-pessoas`                | arquivo `/segredos/pessoas.json`    |
 
 `config.ts` valida tudo na partida: **qualquer ausência ou valor inválido ⇒ o serviço sobe recusando todas as rotas de dados** (falha fechada) e loga qual variável falhou, sem valores.

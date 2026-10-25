@@ -260,10 +260,13 @@ resposta de escrita trouxe a avaliação de risco.
 - **RF-001**: Sistema DEVE permitir que o assistente financeiro seja cadastrado
   uma única vez como conector no Claude e usado a partir do celular (app) e do
   navegador (claude.ai).
-- **RF-002**: Sistema DEVE responder remotamente a todas as perguntas que a spec
-  `005` responde localmente — gasto por categoria, comparação de períodos, detalhe
-  de transações, sem categoria, possíveis duplicatas, compromissos futuros e
-  sobra — com os mesmos resultados e os mesmos indicadores de completude.
+- **RF-002**: Sistema DEVE responder remotamente a **todas as perguntas que a spec
+  `005` responder localmente** — hoje as 7 ferramentas da `005`: contas, categorias,
+  gasto por categoria, comparação de períodos, detalhe de transações, sem categoria e
+  receita/despesa/sobra — com os mesmos resultados. Capacidades que a `005` ainda não
+  entregou (indicadores de completude completos, possíveis duplicatas, compromissos
+  futuros) passam a valer aqui **automaticamente** quando ela as entregar, pois o
+  servidor de consulta é o mesmo.
 - **RF-003**: O uso local no Mac (spec `005`) DEVE continuar funcionando para
   consulta como hoje, sem alteração de comportamento nem de configuração. As
   ferramentas de escrita (RF-029) valem **nos dois caminhos**, porque o servidor é o
@@ -290,6 +293,9 @@ resposta de escrita trouxe a avaliação de risco.
   ser pedida numa tela de configuração do conector.
 
 **Privacidade**
+
+_(Os números RF-010 e RF-011 foram mantidos como marcadores para não quebrar as
+referências; suas regras viraram as de escrita, RF-029 a RF-037.)_
 
 - **RF-010**: _(substituído pela escrita; ver RF-029 a RF-035.)_ As ferramentas de
   **consulta** continuam sem efeito colateral: nenhuma delas altera dado.
@@ -534,8 +540,10 @@ resposta de escrita trouxe a avaliação de risco.
   então precisa ser alcançável pela internet. As respostas passam pela Anthropic,
   o que a constituição já permite (princípio VIII-a) e os usuários já aceitaram
   (`specs/000-produto/spec.md`).
-- **Prazo de inatividade**: 30 dias sem uso expira o acesso. É um padrão razoável
-  para um aparelho pessoal e pode ser ajustado no plano.
+- **Prazo de inatividade**: 30 dias sem uso expira o acesso, e ele também expira de
+  vez 180 dias após ser concedido, mesmo em uso contínuo (um novo login rápido o
+  renova). São padrões razoáveis para um aparelho pessoal e podem ser ajustados no
+  plano.
 - **Rótulo do acesso**: um apelido que o casal escolhe ("celular do Pedro"). Serve
   ao registro de acesso sem violar a regra de log sem identificador de usuário
   (princípio VIII).
