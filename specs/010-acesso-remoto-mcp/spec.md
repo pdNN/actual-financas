@@ -2,7 +2,7 @@
 
 **Branch**: `010-acesso-remoto-mcp`
 **Criada em**: 2026-10-25
-**Status**: Rascunho — escopo ampliado com **escrita** em 2026-10-25; a escrita depende de **emenda ao princípio III** (ver _Impacto na Constituição_). Leitura e acesso remoto (histórias 1–3) não dependem dela
+**Status**: Rascunho — escopo ampliado com **escrita** em 2026-10-25; a fase de escrita depende do **merge da emenda 2.0.0 ao princípio III** (PR #17, já simplificada). Leitura e acesso remoto (histórias 1–3) não dependem dela
 **Entrada**: Descrição do usuário (ampliada duas vezes em 2026-10-25 — ver _Clarificações_): "Quero usar o assistente financeiro (a ponte MCP somente leitura da spec 005) também do celular, configurando um conector no Claude (claude.ai e app), com credenciais fáceis." Ampliação posterior: "quero que o MCP também possa escrever, para eu poder categorizar as coisas pelo Claude e etc."
 
 ---
@@ -172,7 +172,7 @@ atrito de registro na própria conversa, sem abrir o Actual.
 "resolver", e ataca o problema central do produto (despesas que não entram). Fica em
 P4 porque só pode ser entregue depois de o acesso remoto e a revogação existirem
 (histórias 1 e 2): escrever por um endereço público sem poder cortar o acesso seria
-imprudente. **Depende da emenda ao princípio III** (ver _Impacto na Constituição_).
+imprudente. **Depende do merge da emenda 2.0.0 ao princípio III** (PR #17; ver _Impacto na Constituição_).
 
 **Teste independente**: no Actual de teste, pedir ao Claude para categorizar um
 grupo de transações sem categoria, lançar uma despesa nova e apagar uma transação
@@ -376,8 +376,7 @@ resposta de escrita trouxe a avaliação de risco.
   instante, o rótulo do acesso, o tipo de operação, a quantidade de linhas e o nível
   de risco — **sem** descrição, valor ou identificador de usuário (princípio VIII).
 - **RF-035**: Pedro e Julia DEVEM poder escrever, cada um pelos próprios acessos.
-  Não há escopo de escrita separado, teto de volume nem função de desfazer nesta
-  versão (decisão do Pedro); o plano DEVE registrar isso como **risco aceito**.
+  Não há escopo de escrita separado, teto de volume nem função de desfazer nesta versão (decisão do Pedro). Esses riscos já são **aceitos como regra do projeto** pelo princípio III (emenda 2.0.0); esta spec apenas os cita.
 - **RF-036**: Sistema DEVE refletir cada escrita no Actual de forma que apareça para o
   casal no aplicativo em até 1 minuto, pelo mecanismo normal de sincronização do
   Actual.
@@ -482,8 +481,7 @@ resposta de escrita trouxe a avaliação de risco.
   _Acrescentado como consequência, não pedido: interruptor operacional de escrita
   (RF-037) e registro de auditoria da escrita (RF-034), que não afetam o uso normal._
 - P: Quem pode escrever? → R: **Pedro e Julia** — RF-035.
-- P: Como cumprir o princípio III? → R: **Emendar o princípio III** para permitir que
-  a IA decida com base nas mensagens de risco, sem limiar nem confirmação imposta.
+- P: Como cumprir o princípio III? → R: **Emendar o princípio III** para permitir que a IA decida com base nas mensagens de risco, sem limiar nem confirmação imposta. Depois, o Pedro pediu a emenda **mais enxuta** ("confio bastante na IA, temos backup, eu que comando"): ficou como a emenda 2.0.0 do PR #17, com quatro salvaguardas mínimas (identidade, auditoria com origem sem PII, backup diário, risco informado pela ferramenta) e riscos aceitos como regra do projeto.
   Pré-requisito da História 4 (ver _Impacto na Constituição_).
 
 ---
@@ -550,7 +548,7 @@ resposta de escrita trouxe a avaliação de risco.
 - **Escrita pela API do Actual**: as alterações passam pela interface oficial do
   Actual (a mesma que o servidor de leitura já usa) e sincronizam como qualquer outra
   edição do casal. O servidor escreve com a identidade do Pedro no Actual.
-- **Única rede de segurança para apagar**: o backup diário do SQLite da VM para o
+- **Única rede de segurança para apagar** (salvaguarda 3 do princípio III): o backup diário do SQLite da VM para o
   Cloud Storage (`infra/README.md`). Restaurar é grosseiro (volta o dia inteiro).
 - **Risco aceito pelo Pedro (2026-10-25)**: com escrita total, sem travas no servidor
   e com a avaliação a cargo da IA, um acesso comprometido ou um texto malicioso bem
@@ -588,22 +586,23 @@ resposta de escrita trouxe a avaliação de risco.
   deve virar teste automatizado.
 - **Princípio IV — IA plugável e barata**: sem chamada a provider por token; o
   Claude continua pela assinatura já paga. Em conformidade.
-- **Princípio III — Determinístico antes de IA** _(conflito a resolver por emenda)_:
-  a História 4 faz uma IA gravar categoria e apagar dados, e o texto vigente do
-  princípio diz que saída de IA "NÃO DEVE gravar categoria sem confirmação do
-  usuário ou sem confiança acima de um limiar configurável", e que todo acerto
-  confirmado realimenta a camada determinística. O Pedro decidiu (2026-10-25) **emendar
-  o princípio III** para permitir que a IA decida com base nas mensagens de risco.
-  Consequências para o plano: (a) a emenda é **pré-requisito** da História 4, feita
-  por `/speckit.constitution` em PR próprio; (b) o plano NÃO PODE passar o portão da
-  constituição para a escrita antes dela; (c) a emenda deve **preservar** a ordem
-  "regras nativas e cache antes de IA" e a observabilidade da taxa de acionamento da
-  IA, que não foram contestadas; (d) a criação de regra a partir de acertos
-  confirmados (cenário 2 da História 4) mantém a realimentação da camada
-  determinística. As histórias 1 a 3 não dependem da emenda.
+- **Princípio III — Determinístico antes de IA** _(emenda 2.0.0, PR #17)_: a
+  História 4 faz uma IA gravar e apagar, o que o texto anterior vedava. O Pedro
+  decidiu emendar o princípio, e a emenda (simplificada a pedido dele) permite que a
+  IA grave sem confirmação, limiar, teto nem desfazer impostos pelo sistema, com
+  **quatro salvaguardas testáveis** que esta feature atende assim: (1) **comando do
+  dono** — só usuário autenticado e na lista de autorizadas escreve (RF-004 a RF-006,
+  RF-035); (2) **auditoria com origem, sem PII** — RF-034; (3) **backup diário** — já
+  existe (`infra/backup.sh`; restauração em `infra/restore.sh`), e a História 4 só
+  apaga porque esse backup existe; (4) **risco informado** pela ferramenta e
+  calculado pelo servidor — RF-030 a RF-032. Os riscos aceitos (injeção por texto de
+  extrato, sem desfazer, acesso comprometido) são regra do projeto: esta spec apenas
+  os cita. **Condição de entrega**: a fase de escrita só começa depois do merge do
+  PR #17; as histórias 1 a 3 não dependem dele. A ordem "regras nativas → cache →
+  IA" e a realimentação da camada determinística seguem valendo (cenário 2 da
+  História 4).
 - **Princípio I — Spec antes de código**: este documento. Nenhuma implementação
-  começa antes de `/speckit.clarify` e `/speckit.plan`; a História 4 também espera a
-  emenda ao princípio III.
+  começa antes de `/speckit.clarify` e `/speckit.plan`; a História 4 também espera o merge da emenda ao princípio III (PR #17).
 - **Princípio VIII — escrita**: o registro de auditoria da escrita (RF-034) e as
   mensagens de risco não podem conter descrição, valor, e-mail ou IP; o texto das
   descrições e valores gravados vai do Claude ao Actual, sem passar por log.

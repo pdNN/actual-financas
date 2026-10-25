@@ -2,7 +2,7 @@
 
 **Origem**: decisões do Pedro de 2026-10-25 (spec, _Clarificações_ 2): escopo **total**; **sem travas no servidor**; o MCP **só devolve mensagens de risco** e a **IA avalia**; Pedro e Julia escrevem; princípio III será **emendado**.
 
-> **Pré-requisito de governança**: nada deste contrato é implementado antes da emenda ao princípio III (PR próprio, `/speckit.constitution`). As histórias 1–3 (consulta remota) seguem sem depender dela.
+> **Pré-requisito de governança**: nada deste contrato é implementado antes do merge da emenda 2.0.0 ao princípio III (PR #17). As histórias 1–3 (consulta remota) seguem sem depender dela.
 
 ## Princípios do desenho
 
@@ -12,6 +12,8 @@
 4. **Consultas continuam sem efeito colateral.** Ferramentas de leitura mantêm `readOnlyHint: true`; as de escrita declaram `readOnlyHint: false` e `destructiveHint` conforme o risco.
 
 ## Interruptor operacional
+
+_Não é exigido pela constituição (a emenda 2.0.0 não o impõe); fica por ser barato e útil em emergência._
 
 `estado.json` ganha `escritaHabilitada` (padrão **true**). Com `false`, **toda** ferramenta de escrita responde erro: _"As escritas estão desligadas no momento. As consultas continuam funcionando."_ Alternado por `acessos escrita desligar|ligar` (≤ 30 s para valer). Não afeta o uso normal; é para emergência (aparelho comprometido, comportamento estranho do assistente).
 
@@ -109,7 +111,7 @@ Acrescentado a `protocol.ts` (fonte única), em pt-BR:
 4. **Depois de escrever**: resuma o `efeito` e repita os avisos de risco relevantes ao usuário; diga o que não tem desfazer.
 5. **Dúvida de referência** (duas categorias parecidas, duas contas): pergunte, não adivinhe.
 
-_Estas regras orientam o modelo; não são garantia. A ausência de bloqueio no servidor é decisão do Pedro (risco aceito)._
+_Estas regras orientam o modelo; não são garantia. A ausência de bloqueio no servidor é decisão do Pedro e risco aceito pelo princípio III._
 
 ## Auditoria
 

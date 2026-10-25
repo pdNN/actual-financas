@@ -169,12 +169,12 @@
 - **Reabrir se**: a IA gravar algo errado ou perigoso em uso real. As opções (a) e (b) são acréscimos de servidor que não mudam o contrato das ferramentas — a escolha de hoje não fecha a porta.
 - **Spike W-1**: confirmar na versão fixada do cliente do Actual (26.10.0) as operações de cada linha do catálogo (adicionar/atualizar/apagar transação; criar/atualizar/apagar categoria e grupo; criar/atualizar/apagar regra; criar/atualizar/fechar/reabrir/apagar conta; definir valor de orçamento) e se a transação **conciliada** é identificável. O que não existir vira "indisponível" com mensagem clara. Plano B: nenhum — não se escreve direto no SQLite do Actual.
 
-### R-19 — Governança: emenda ao princípio III antes da escrita
+### R-19 — Governança: emenda 2.0.0 ao princípio III antes da escrita
 
-- **Decisão (Pedro)**: **emendar o princípio III** para permitir que a IA decida com base nas mensagens de risco, em vez do texto atual ("NÃO DEVE gravar categoria sem confirmação do usuário ou sem confiança acima de um limiar configurável").
-- **Como**: `/speckit.constitution`, PR próprio, com Relatório de Impacto de Sincronização. Pelo versionamento da constituição, redefinir de forma incompatível um princípio é **MAIOR** (2.0.0); isso é da skill decidir ao avaliar o texto final.
-- **O que a emenda deve preservar**: a ordem "regras nativas → cache → IA" na classificação **em lote automática** (feature `003`); a observabilidade da taxa de acionamento da IA; e a realimentação da camada determinística quando houver acertos confirmados (regra criada, cenário 2 da história 4).
-- **Efeito no cronograma**: histórias 1–3 não esperam; história 4 espera. `/speckit.tasks` separa as fases.
+- **Decisão (Pedro)**: emendar o princípio III. Primeiro desenhei uma emenda com duas faixas e sete condições; o Pedro pediu algo bem mais enxuto ("confio bastante na IA, temos backup, eu que comando"). Ficou a **emenda 2.0.0** do PR #17: a IA pode gravar (categorizar, lançar, editar, apagar) sem confirmação, limiar, teto nem desfazer impostos pelo sistema, em qualquer caminho, com **quatro salvaguardas** (comando do dono, auditoria com origem sem PII, backup diário, risco informado e calculado pelo servidor) e **riscos aceitos como regra do projeto**.
+- **O que a emenda preserva**: a ordem "regras nativas → cache → IA" (por custo, não por desconfiança), a realimentação da camada determinística e a taxa de acionamento observável.
+- **Efeito na feature**: o interruptor de escrita e a revogação em minutos deixam de ser exigência da constituição; **continuam** nesta spec por serem baratos e úteis (RF-037, História 2). A spec não precisa renegociar os riscos aceitos: cita o princípio.
+- **Efeito no cronograma**: histórias 1–3 não esperam; a história 4 só começa com o PR #17 mergeado. `/speckit.tasks` separa as fases.
 
 ---
 

@@ -94,7 +94,7 @@ Marque cada item com a evidência (saída ou captura **sem dados financeiros**).
 | C14 | Esgote o limite de consultas (script com > 60 pedidos/min por um acesso): `429` com `Retry-After`; o Actual não sente                                                                                                               | RF-019        |
 | C15 | Pare o Actual (ou use token inválido em ambiente de teste): a resposta distingue "Actual fora do ar" de "acesso encerrado"                                                                                                          | RF-022        |
 
-### Bateria de escrita (só depois da emenda ao princípio III) — use um orçamento de teste ou transações de teste que você apague depois
+### Bateria de escrita (só depois do merge do PR #17, a emenda ao princípio III) — use um orçamento de teste ou transações de teste que você apague depois
 
 | #   | Verificação                                                                                                                                                                                        | Critério       |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
