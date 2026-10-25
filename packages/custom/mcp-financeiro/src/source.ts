@@ -24,6 +24,8 @@ export type BudgetSource = {
   listAccounts(): Promise<AccountItem[]>;
   listCategories(): Promise<CategoryItem[]>;
   close(): Promise<void>;
+  /** Instante (ISO) da última sincronização, quando a fonte sabe (caminho remoto). */
+  atualizadoEm?(): string | null;
 };
 
 export type SourceConfig = {
@@ -67,7 +69,9 @@ export function toTxRow(row: AqlRow): TxRow {
   };
 }
 
-export async function openBudget(config: SourceConfig): Promise<BudgetSource> {
+export async function openBudget(
+  config: SourceConfig,
+): Promise<BudgetSource & { sync(): Promise<void> }> {
   await actual.init({
     dataDir: config.dataDir,
     serverURL: config.url,
@@ -79,6 +83,10 @@ export async function openBudget(config: SourceConfig): Promise<BudgetSource> {
   );
 
   return {
+    async sync() {
+      await actual.sync();
+    },
+
     async loadTransactions(range) {
       const query = actual
         .q('transactions')

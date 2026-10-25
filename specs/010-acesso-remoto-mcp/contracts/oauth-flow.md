@@ -36,7 +36,7 @@ cliente MCP            serviço (/mcp + OAuth)                navegador do usuá
 | `POST /mcp`                                   | cliente                     | `Authorization: Bearer`   | ver `mcp-endpoint.md`                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `GET /saude`                                  | smoke test / Cloud Run      | nenhuma                   | `200 {"ok":true}` — **não** toca o Actual nem o estado                                                                                                                                                                                                                                                                                                                                                                               |
 
-`/token` aceita `application/x-www-form-urlencoded` (exigência do Claude); `/register` aceita `application/json`. Corpo máximo 100 kB. **Sem CORS.**
+`/token` aceita `application/x-www-form-urlencoded` (exigência do Claude); `/register` aceita `application/json`. Corpo máximo 100 kB. CORS só nas rotas OAuth do SDK (`/register`, `/token`, `/authorize`, `/revoke`, metadata), que servem clientes web de MCP; **`/mcp` não oferece CORS**.
 
 ## Regras de validação
 
@@ -63,7 +63,7 @@ Exige, **todos**: `state` válido e não expirado; cookie de login coincidente; 
 ### `POST /consentimento`
 
 - A página mostra: nome do cliente, **host do retorno** em destaque, o que será concedido ("**consultar e alterar** as finanças do casal: categorizar, lançar, editar e apagar" — sem escopo separado de leitura; é tudo ou nada, decisão do Pedro), campo **rótulo do acesso** (obrigatório, 1–40 caracteres, sugestão "celular de <pessoa>") e o botão "Autorizar".
-- CSRF obrigatório; sessão assinada de 5 min; página com `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'`, `frame-ancestors 'none'`.
+- CSRF obrigatório; sessão assinada de 5 min; página com `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self' <origem do retorno>; frame-ancestors 'none'; base-uri 'none'` (o Chrome aplica o `form-action` também ao redirecionamento depois do POST, por isso a origem do retorno entra nele; para _loopback_ vale `http://<host>:*`).
 - Sucesso: gera código de autorização (60 s, uso único) e redireciona.
 
 ### `POST /token`

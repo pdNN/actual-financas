@@ -65,6 +65,12 @@ resource "google_project_iam_member" "tf_deployer" {
     "roles/resourcemanager.projectIamAdmin", # conceder papéis de projeto
     "roles/secretmanager.admin",             # secrets consumidos pela VM
     "roles/storage.admin",                   # bucket de backup
+    # >>> CUSTOM: actual-financas — serviço remoto do assistente financeiro (spec 010, infra/mcp-remoto.tf)
+    "roles/run.admin",                           # serviço Cloud Run e seu invoker público
+    "roles/artifactregistry.admin",              # repositório de imagens do serviço remoto
+    "roles/serviceusage.serviceUsageAdmin",      # habilitar as APIs do serviço remoto
+    "roles/logging.configWriter",                # filtro que exclui o log de requisições do Cloud Run
+    # <<< CUSTOM
   ])
 
   project = var.project_id
