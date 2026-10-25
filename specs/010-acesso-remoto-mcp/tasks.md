@@ -7,7 +7,7 @@
 ## Formato
 
 ```
-- [ ] T012 [P] [US1] Descrição da tarefa com o caminho do arquivo
+- [x] T012 [P] [US1] Descrição da tarefa com o caminho do arquivo
 ```
 
 - `T###` — id sequencial, contínuo em todas as fases.
@@ -33,11 +33,11 @@ Fase 1 Setup ─▶ Fase 2 Fundação ─▶ Fase 3 US1 (consulta remota) ─▶
 
 ## Fase 1 — Setup (infraestrutura compartilhada)
 
-- [ ] T001 Atualizar a branch `010-acesso-remoto-mcp` com a branch principal (traz a `005` mergeada, `packages/custom/mcp-financeiro/`, e a emenda se o PR #17 já estiver mergeado) e conferir que `packages/custom/mcp-financeiro/src/server.ts` e `source.ts` existem e os testes da 005 passam
-- [ ] T002 [P] Spike S-1: no SDK fixado em `packages/custom/package.json` (`@modelcontextprotocol/sdk` 1.32.1) confirmar roteador de autorização com _client store_ customizado, tratamento de `resource` e `401` com `WWW-Authenticate`; registrar o resultado e o plano B em `specs/010-acesso-remoto-mcp/research.md` (tabela de spikes) _(RF-028)_
+- [x] T001 Atualizar a branch `010-acesso-remoto-mcp` com a branch principal (traz a `005` mergeada, `packages/custom/mcp-financeiro/`, e a emenda se o PR #17 já estiver mergeado) e conferir que `packages/custom/mcp-financeiro/src/server.ts` e `source.ts` existem e os testes da 005 passam
+- [x] T002 [P] Spike S-1: no SDK fixado em `packages/custom/package.json` (`@modelcontextprotocol/sdk` 1.32.1) confirmar roteador de autorização com _client store_ customizado, tratamento de `resource` e `401` com `WWW-Authenticate`; registrar o resultado e o plano B em `specs/010-acesso-remoto-mcp/research.md` (tabela de spikes) _(RF-028)_
 - [ ] T003 [P] Spike S-3: abrir o orçamento com `sessionToken` em diretório temporário (sem disco persistente) e medir o tempo de abertura; registrar em `specs/010-acesso-remoto-mcp/research.md` _(RF-023, CS-002)_
 - [ ] T004 [P] [MANUAL] Spike S-5: criar o cliente OAuth novo do Google (`financas-mcp`, escopos `openid email`, Pedro e Julia como usuários de teste) e confirmar que o `id_token` traz `email`; registrar em `specs/010-acesso-remoto-mcp/research.md` (o redirect definitivo é preenchido na T052) _(RF-005)_
-- [ ] T005 Ajustar `packages/custom/tsconfig.json` e `packages/custom/package.json` se o spike T002 exigir (só **adicionar** dependências; nenhuma é prevista) e criar o diretório `packages/custom/mcp-financeiro/src/remoto/` com um `index.ts` vazio exportado
+- [x] T005 Ajustar `packages/custom/tsconfig.json` e `packages/custom/package.json` se o spike T002 exigir (só **adicionar** dependências; nenhuma é prevista) (resultado do spike: **declarar `express` e `@types/express`**, feito; o diretório `src/remoto/` nasce com o primeiro teste da Fundação, sem `index.ts` vazio)
 
 ---
 
@@ -47,29 +47,29 @@ Fase 1 Setup ─▶ Fase 2 Fundação ─▶ Fase 3 US1 (consulta remota) ─▶
 
 ### Testes da Fundação (escrever primeiro; devem falhar)
 
-- [ ] T006 [P] Teste de `config`: variável ausente/inválida ⇒ modo de recusa total com o **nome** da variável (nunca o valor), padrões de TTL/limites, política de redirects, faixa de origem vazia = desligada, em `packages/custom/mcp-financeiro/src/remoto/config.test.ts` _(RF-018, RF-021)_
-- [ ] T007 [P] Teste de `tokens`: JWT HS256 (assinatura, `aud`, `exp`, adulteração, algoritmo trocado), HKDF com subchaves distintas por finalidade, refresh opaco com hash, em `packages/custom/mcp-financeiro/src/remoto/tokens.test.ts` _(RF-004, RF-008)_
-- [ ] T008 [P] Teste de `acessos` (regras puras): conceder, expirar por inatividade e por limite absoluto, rotacionar refresh, **reuso de refresh encerra o acesso**, encerrar um/todos (`revogadoAntesDe`), **tolerância de 60 s a _retry_ do refresh anterior** (depois disso é reuso), pessoa removida, teto de 10 por pessoa, limpeza após 90 dias, em `packages/custom/mcp-financeiro/src/remoto/acessos.test.ts` _(RF-008, RF-015..017)_
-- [ ] T009 [P] Teste do contrato de `estado-store` (implementação em memória): leitura com cache ≤ 30 s, escrita com conflito de geração ⇒ relê, reaplica e repete até 5 vezes, depois erro distinguível, em `packages/custom/mcp-financeiro/src/remoto/estado-store.test.ts` _(RF-014)_
-- [ ] T010 [P] Teste de `estado-gcs` contra um `fetch` falso: `ifGenerationMatch`, `412` ⇒ retry, objeto ausente ⇒ estado inicial vazio, nenhum segredo em erro, em `packages/custom/mcp-financeiro/src/remoto/estado-gcs.test.ts` _(RF-014)_
-- [ ] T011 [P] Teste de `autorizadas`: 2 entradas OK; arquivo ausente, JSON inválido, vazio ou > 2 entradas ⇒ **ninguém entra**; comparação de e-mail sem diferenciar maiúsculas; relê em ≤ 30 s; nunca expõe o e-mail, em `packages/custom/mcp-financeiro/src/remoto/autorizadas.test.ts` _(RF-006, RF-017)_
+- [x] T006 [P] Teste de `config`: variável ausente/inválida ⇒ modo de recusa total com o **nome** da variável (nunca o valor), padrões de TTL/limites, política de redirects, faixa de origem vazia = desligada, em `packages/custom/mcp-financeiro/src/remoto/config.test.ts` _(RF-018, RF-021)_
+- [x] T007 [P] Teste de `tokens`: JWT HS256 (assinatura, `aud`, `exp`, adulteração, algoritmo trocado), HKDF com subchaves distintas por finalidade, refresh opaco com hash, em `packages/custom/mcp-financeiro/src/remoto/tokens.test.ts` _(RF-004, RF-008)_
+- [x] T008 [P] Teste de `acessos` (regras puras): conceder, expirar por inatividade e por limite absoluto, rotacionar refresh, **reuso de refresh encerra o acesso**, encerrar um/todos (`revogadoAntesDe`), **tolerância de 60 s a _retry_ do refresh anterior** (depois disso é reuso), pessoa removida, teto de 10 por pessoa, limpeza após 90 dias, em `packages/custom/mcp-financeiro/src/remoto/acessos.test.ts` _(RF-008, RF-015..017)_
+- [x] T009 [P] Teste do contrato de `estado-store` (implementação em memória): leitura com cache ≤ 30 s, escrita com conflito de geração ⇒ relê, reaplica e repete até 5 vezes, depois erro distinguível, em `packages/custom/mcp-financeiro/src/remoto/estado-store.test.ts` _(RF-014)_
+- [x] T010 [P] Teste de `estado-gcs` contra um `fetch` falso: `ifGenerationMatch`, `412` ⇒ retry, objeto ausente ⇒ estado inicial vazio, nenhum segredo em erro, em `packages/custom/mcp-financeiro/src/remoto/estado-gcs.test.ts` _(RF-014)_
+- [x] T011 [P] Teste de `autorizadas`: 2 entradas OK; arquivo ausente, JSON inválido, vazio ou > 2 entradas ⇒ **ninguém entra**; comparação de e-mail sem diferenciar maiúsculas; relê em ≤ 30 s; nunca expõe o e-mail, em `packages/custom/mcp-financeiro/src/remoto/autorizadas.test.ts` _(RF-006, RF-017)_
 - [ ] T012 [P] Teste de `limites`: janela deslizante por IP (falhas, `/register`, `/authorize`) e por acesso (consultas), `Retry-After`, em `packages/custom/mcp-financeiro/src/remoto/limites.test.ts` _(RF-019)_
-- [ ] T013 [P] Teste de `origem`: IP a partir de `X-Forwarded-For` (posição confiável), CIDR, lista vazia = permitido, IPv6, em `packages/custom/mcp-financeiro/src/remoto/origem.test.ts` _(RF-019)_
-- [ ] T014 [P] Teste de `auditoria`: **só** os campos da lista fechada de `contracts/auditoria.md`; um teste injeta e-mail, IP, valor, parâmetros, `code`, token e verifica que **nada** disso sai, em `packages/custom/mcp-financeiro/src/remoto/auditoria.test.ts` _(RF-020, RF-021)_
+- [x] T013 [P] Teste de `origem`: IP a partir de `X-Forwarded-For` (posição confiável), CIDR, lista vazia = permitido, IPv6, em `packages/custom/mcp-financeiro/src/remoto/origem.test.ts` _(RF-019)_
+- [x] T014 [P] Teste de `auditoria`: **só** os campos da lista fechada de `contracts/auditoria.md`; um teste injeta e-mail, IP, valor, parâmetros, `code`, token e verifica que **nada** disso sai, em `packages/custom/mcp-financeiro/src/remoto/auditoria.test.ts` _(RF-020, RF-021)_
 
 ### Implementação da Fundação
 
-- [ ] T015 [P] Implementar `config` (variáveis e secrets, falha fechada) em `packages/custom/mcp-financeiro/src/remoto/config.ts` _(RF-021)_
-- [ ] T016 [P] Implementar `tokens` (JWT HS256 + HKDF com `node:crypto`, refresh opaco/hash) em `packages/custom/mcp-financeiro/src/remoto/tokens.ts` _(RF-004)_
-- [ ] T017 Implementar as regras de `acessos` (puras, sem I/O) segundo `data-model.md §1`, em `packages/custom/mcp-financeiro/src/remoto/acessos.ts` _(RF-008, RF-015..017)_
-- [ ] T018 Implementar a interface e a versão em memória de `estado-store` em `packages/custom/mcp-financeiro/src/remoto/estado-store.ts` _(RF-014)_
-- [ ] T019 Implementar `estado-gcs` (REST do Cloud Storage com token do servidor de metadados ou injetado; sem SDK) em `packages/custom/mcp-financeiro/src/remoto/estado-gcs.ts` _(RF-014)_
-- [ ] T020 [P] Implementar `autorizadas` (arquivo montado, relido, falha fechada) em `packages/custom/mcp-financeiro/src/remoto/autorizadas.ts` _(RF-006)_
-- [ ] T021 [P] Implementar `limites` em `packages/custom/mcp-financeiro/src/remoto/limites.ts` _(RF-019, RF-025)_
-- [ ] T022 [P] Implementar `origem` (IP real e filtro de faixa opcional) em `packages/custom/mcp-financeiro/src/remoto/origem.ts` _(RF-019)_
-- [ ] T023 [P] Implementar `auditoria` (logger de lista fechada em `stdout`) em `packages/custom/mcp-financeiro/src/remoto/auditoria.ts` _(RF-020)_
+- [x] T015 [P] Implementar `config` (variáveis e secrets, falha fechada) em `packages/custom/mcp-financeiro/src/remoto/config.ts` _(RF-021)_
+- [x] T016 [P] Implementar `tokens` (JWT HS256 + HKDF com `node:crypto`, refresh opaco/hash) em `packages/custom/mcp-financeiro/src/remoto/tokens.ts` _(RF-004)_
+- [x] T017 Implementar as regras de `acessos` (puras, sem I/O) segundo `data-model.md §1`, em `packages/custom/mcp-financeiro/src/remoto/acessos.ts` _(RF-008, RF-015..017)_
+- [x] T018 Implementar a interface e a versão em memória de `estado-store` em `packages/custom/mcp-financeiro/src/remoto/estado-store.ts` _(RF-014)_
+- [x] T019 Implementar `estado-gcs` (REST do Cloud Storage com token do servidor de metadados ou injetado; sem SDK) em `packages/custom/mcp-financeiro/src/remoto/estado-gcs.ts` _(RF-014)_
+- [x] T020 [P] Implementar `autorizadas` (arquivo montado, relido, falha fechada) em `packages/custom/mcp-financeiro/src/remoto/autorizadas.ts` _(RF-006)_
+- [x] T021 [P] Implementar `limites` em `packages/custom/mcp-financeiro/src/remoto/limites.ts` _(RF-019, RF-025)_
+- [x] T022 [P] Implementar `origem` (IP real e filtro de faixa opcional) em `packages/custom/mcp-financeiro/src/remoto/origem.ts` _(RF-019)_
+- [x] T023 [P] Implementar `auditoria` (logger de lista fechada em `stdout`) em `packages/custom/mcp-financeiro/src/remoto/auditoria.ts` _(RF-020)_
 
-**Checkpoint**: fundação pronta — `yarn workspace @actual-financas/custom test` verde; as histórias podem começar.
+**Checkpoint (✅ atingido em 2026-10-25: 18 módulos/testes, 157 testes verdes, typecheck e lint verdes)**: fundação pronta — `yarn workspace @actual-financas/custom test` verde; as histórias podem começar.
 
 ---
 
