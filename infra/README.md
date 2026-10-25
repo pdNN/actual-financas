@@ -216,6 +216,25 @@ O bucket tem versionamento e `prevent_destroy`: `terraform destroy` não leva os
 
 ---
 
+## Terceiros que recebem dados
+
+Exigência do princípio VIII da constituição: todo terceiro em uso está declarado aqui, para que o Pedro e a Julia saibam para onde os dados vão. Ao incluir um terceiro novo, declare-o neste quadro **antes** de ele receber qualquer dado.
+
+| Terceiro                                                | O que recebe                                                                                                                                                                                                                                                                                      | Como revogar                                                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Google** (login OpenID, em produção)                  | Só identidade: quem está entrando (e-mail e perfil básico). Nenhum dado financeiro vai ao Google.                                                                                                                                                                                                 | Remover o usuário de teste na tela de consentimento do OAuth, ou revogar o acesso do app na conta Google.                    |
+| **Pluggy / Meu Pluggy** (agregador de Open Finance)     | Previsto na spec 002 (sync do cartão). Enquanto durar o consentimento, transitam e ficam no agregador dados de conta, cartão, saldo, extrato e fatura. **As credenciais bancárias nunca passam por nós**: a autenticação é entre o Pedro e o banco. O consentimento vence e precisa ser renovado. | Pelo app do banco (Open Finance → consentimentos) ou pelo painel [meu.pluggy.ai](https://meu.pluggy.ai). Não depende de nós. |
+| **Anthropic / Claude** (ponte MCP somente leitura)      | Em implementação (spec 005). Passa a receber descrição, valor, data, categoria e payee do orçamento. Número de conta, cartão, CPF/CNPJ, senha e token são mascarados antes de chegar ao Claude. A credencial de acesso ao Actual fica só no Chaveiro do macOS do Pedro, nunca no repositório.     | Parar de usar o assistente e apagar os itens `actual-financas-mcp` do Chaveiro. O servidor da VM não é alterado (RF-017).    |
+| **Google Cloud** (Cloud Logging, backup e state em GCS) | Logs de stdout/stderr dos containers, sem o access log do Caddy. Detalhes em [Logs](#logs).                                                                                                                                                                                                       | Remover o driver `gcplogs` do `docker-compose.prod.yml`; a retenção do bucket `_Default` é de 30 dias.                       |
+
+Detalhes e fontes:
+
+- **Pluggy**: o escopo e a janela do consentimento são definidos no banco, não por este repositório; a data de vencimento aparece no app do banco e no Meu Pluggy. Sincronizar não é condição para usar o sistema — o lançamento manual continua funcionando (princípio VIII).
+- **Claude**: o que pode e o que não pode sair está em `specs/005-servidor-mcp-financeiro/spec.md` (RF-012 a RF-014). Nomes de pessoas em descrições de Pix não são mascarados: são payee, que a constituição permite (risco residual registrado no `plan.md`).
+- **Gemini (AI Studio)**: **não** recebe nada hoje. A chave `AI_STUDIO_API_KEY` existe no Secret Manager, mas a classificação por IA do servidor está desligada por padrão (ver o passo 5 da instalação). Se for ligada, este quadro precisa ganhar uma linha.
+
+---
+
 ## Custo
 
 | Recurso                      | Free tier                  |

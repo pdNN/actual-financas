@@ -8,6 +8,8 @@
 
 ## Resumo
 
+> **Emenda 2026-10-19:** o MCP pronto não autentica na produção (login Google, sem senha). Ver "Emenda D-1" em `research.md`: o servidor passa a ser **próprio e mínimo**, com token de sessão. O restante deste plano (lançador, máscara, guarda, subagente) continua valendo; onde diz `actual-mcp-server`, leia "nosso servidor".
+
 **Adotar, não construir.** O servidor MCP de código aberto
 [`actual-mcp-server`](https://github.com/agigante80/actual-mcp-server)
 (MIT, v0.22.46, publicado no npm) já cobre a maior parte das leituras da spec.
@@ -32,17 +34,17 @@ não nesta.
 
 ## Contexto Técnico
 
-| Item                        | Valor                                                                                                                         |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Linguagem / versão**      | TypeScript, Node >= 22 (lançador e máscara); servidor externo em Node >= 22                                                   |
-| **Dependências principais** | `actual-mcp-server@0.22.46` (via `npx`, **não** entra no `package.json`); nenhuma dependência nova no monorepo                |
-| **Armazenamento**           | Nenhum novo. Lê o orçamento do Actual; o servidor mantém uma cópia local do orçamento em disco, na máquina do Pedro           |
-| **Testes**                  | Vitest ao lado do fonte (`launch.test.ts`, `mask-pii.test.ts`); verificação manual guiada no `quickstart.md`                  |
-| **Plataforma alvo**         | Máquina do Pedro (macOS), Claude Code. Nada na VM                                                                             |
-| **Tipo de projeto**         | Pacote custom no monorepo + arquivos `.claude/` novos                                                                         |
-| **Metas de performance**    | Primeira pergunta em < 30 s (CS-001), incluindo a abertura da sessão; demais, segundos                                        |
-| **Restrições**              | Zero escrita (RF-010); sem credencial em arquivo (RF-013); sem alterar a instalação de produção (RF-017)                      |
-| **Escala / escopo**         | 2 usuários, centenas de transações por mês; uso por 1 pessoa                                                                  |
+| Item                        | Valor                                                                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Linguagem / versão**      | TypeScript, Node >= 22 (lançador e máscara); servidor externo em Node >= 22                                                                        |
+| **Dependências principais** | `actual-mcp-server@0.22.46` (via `npx`, **não** entra no `package.json`); nenhuma dependência nova no monorepo                                     |
+| **Armazenamento**           | Nenhum novo. Lê o orçamento do Actual; o servidor mantém uma cópia local do orçamento em disco, na máquina do Pedro                                |
+| **Testes**                  | Vitest ao lado do fonte (`launch.test.ts`, `mask-pii.test.ts`); verificação manual guiada no `quickstart.md`                                       |
+| **Plataforma alvo**         | Máquina do Pedro (macOS), Claude Code. Nada na VM                                                                                                  |
+| **Tipo de projeto**         | Pacote custom no monorepo + arquivos `.claude/` novos                                                                                              |
+| **Metas de performance**    | Primeira pergunta em < 30 s (CS-001), incluindo a abertura da sessão; demais, segundos                                                             |
+| **Restrições**              | Zero escrita (RF-010); sem credencial em arquivo (RF-013); sem alterar a instalação de produção (RF-017)                                           |
+| **Escala / escopo**         | 2 usuários, centenas de transações por mês; uso por 1 pessoa                                                                                       |
 | **Pacotes tocados**         | **Novo**: `packages/custom/` (workspace) com `mcp-financeiro/`. **Novos** em `.claude/`: `agents/assistente-financeiro.md`. **Nenhum** do upstream |
 
 ### Impacto de memória e disco
@@ -74,14 +76,14 @@ não nesta.
 
 ### Privacidade (princípio VIII)
 
-| Dado                                                | Pode ir ao Claude? | Como é garantido                                                                                                   |
-| --------------------------------------------------- | :----------------: | ------------------------------------------------------------------------------------------------------------------ |
-| Descrição, valor, data, categoria, payee            |        Sim         | Fluxo normal                                                                                                       |
-| Nome amigável da conta                              |        Sim         | Fluxo normal                                                                                                       |
-| Número de conta/cartão, CPF/CNPJ em texto de transação |      **Não**       | `mask-pii` na resposta (PostToolUse do subagente). Teste cobre formatos com e sem pontuação                        |
-| Senha do Actual, senha de criptografia do orçamento |      **Não**       | Só no chaveiro do macOS; o lançador injeta no ambiente do processo filho; nunca em arquivo, argumento nem log      |
-| Identificadores de sessão do servidor               |      **Não**       | Não são devolvidos pelas ferramentas de leitura usadas (verificar no quickstart, passo 5)                          |
-| Log do servidor                                     | Local              | O servidor redige segredos no log (#220). RF-014: verificado no quickstart, passo 5, procurando descrição e valor  |
+| Dado                                                   | Pode ir ao Claude? | Como é garantido                                                                                                  |
+| ------------------------------------------------------ | :----------------: | ----------------------------------------------------------------------------------------------------------------- |
+| Descrição, valor, data, categoria, payee               |        Sim         | Fluxo normal                                                                                                      |
+| Nome amigável da conta                                 |        Sim         | Fluxo normal                                                                                                      |
+| Número de conta/cartão, CPF/CNPJ em texto de transação |      **Não**       | `mask-pii` na resposta (PostToolUse do subagente). Teste cobre formatos com e sem pontuação                       |
+| Senha do Actual, senha de criptografia do orçamento    |      **Não**       | Só no chaveiro do macOS; o lançador injeta no ambiente do processo filho; nunca em arquivo, argumento nem log     |
+| Identificadores de sessão do servidor                  |      **Não**       | Não são devolvidos pelas ferramentas de leitura usadas (verificar no quickstart, passo 5)                         |
+| Log do servidor                                        |       Local        | O servidor redige segredos no log (#220). RF-014: verificado no quickstart, passo 5, procurando descrição e valor |
 
 ---
 
@@ -155,6 +157,6 @@ restante; duas verificações práticas (S-1, S-2) ficam como _spikes_ no iníci
 
 ## Rastreamento de Complexidade
 
-| Violação | Por que é necessária | Por que a alternativa mais simples foi rejeitada |
-| -------- | -------------------- | ------------------------------------------------ |
-| _(nenhuma)_ |                    |                                                  |
+| Violação    | Por que é necessária | Por que a alternativa mais simples foi rejeitada |
+| ----------- | -------------------- | ------------------------------------------------ |
+| _(nenhuma)_ |                      |                                                  |

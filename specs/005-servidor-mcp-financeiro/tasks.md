@@ -6,7 +6,7 @@
 ## Formato
 
 ```
-- [ ] T012 [P] [US1] Descrição da tarefa com o caminho do arquivo
+- [x] T012 [P] [US1] Descrição da tarefa com o caminho do arquivo
 ```
 
 - `T###` — id sequencial, contínuo em todas as fases.
@@ -32,10 +32,10 @@
 
 ## Fase 1 — Setup (infraestrutura compartilhada)
 
-- [ ] T001 Criar o pacote de workspace `packages/custom/package.json` (`name: "@actual-financas/custom"`, `private: true`, `type: "module"`, scripts `test: "vitest --run"` e `typecheck: "tsgo -b"`, `devDependencies` de `vitest` na mesma faixa de `packages/crdt/package.json`)
-- [ ] T002 [P] Criar `packages/custom/tsconfig.json` no molde de `packages/crdt/tsconfig.json`, com `include: ["./mcp-financeiro/src/"]` e `rootDir: "./mcp-financeiro/src"`
-- [ ] T003 Rodar `corepack yarn install` na raiz e conferir que o diff de `yarn.lock` é **só aditivo** (entrada do workspace novo); registrar o resultado em `verification.md`
-- [ ] T004 [P] Ler `vitest.config.ts` da raiz e confirmar se `projects` precisa listar o pacote novo; se precisar, **não editar** — usar o script `test` do próprio pacote (o lage o descobre) e anotar a decisão em `verification.md`
+- [x] T001 Criar o pacote de workspace `packages/custom/package.json` (`name: "@actual-financas/custom"`, `private: true`, `type: "module"`, scripts `test: "vitest --run"` e `typecheck: "tsgo -b"`, `devDependencies` de `vitest` na mesma faixa de `packages/crdt/package.json`)
+- [x] T002 [P] Criar `packages/custom/tsconfig.json` no molde de `packages/crdt/tsconfig.json`, com `include: ["./mcp-financeiro/src/"]` e `rootDir: "./mcp-financeiro/src"`
+- [x] T003 Rodar `corepack yarn install` na raiz e conferir que o diff de `yarn.lock` é **só aditivo** (entrada do workspace novo); registrar o resultado em `verification.md`
+- [x] T004 [P] Ler `vitest.config.ts` da raiz e confirmar se `projects` precisa listar o pacote novo; se precisar, **não editar** — usar o script `test` do próprio pacote (o lage o descobre) e anotar a decisão em `verification.md`
 
 ---
 
@@ -47,29 +47,43 @@
 
 ### Spikes (resolvem o que pode mudar o desenho)
 
-- [ ] T005 Spike S-1: com um servidor MCP de brinquedo em `.claude/worktrees/005-mcp/.scratch/` (fora do versionamento), provar que o cabeçalho de um subagente aceita `mcpServers` e `hooks`, que o `PostToolUse` troca a resposta via `updatedToolOutput` e que o `PreToolUse` nega uma ferramenta. Registrar formato exato de entrada/saída e a versão do Claude Code em `specs/005-servidor-mcp-financeiro/research.md` (seção "Resultados dos spikes"). **Se falhar**, aplicar o plano B do `research.md` (servidor em `.mcp.json` próprio + hooks em `settings.local.json` não versionado) e ajustar T018.
-- [ ] T006 Baixar `actual-mcp-server@0.22.46` com `npm pack` em diretório novo do scratchpad (sem executar) e comparar os nomes reais das ferramentas com `specs/005-servidor-mcp-financeiro/contracts/tool-surface.md`; corrigir o contrato onde divergir
+- [x] T005 Spike S-1: com um servidor MCP de brinquedo em `.claude/worktrees/005-mcp/.scratch/` (fora do versionamento), provar que o cabeçalho de um subagente aceita `mcpServers` e `hooks`, que o `PostToolUse` troca a resposta via `updatedToolOutput` e que o `PreToolUse` nega uma ferramenta. Registrar formato exato de entrada/saída e a versão do Claude Code em `specs/005-servidor-mcp-financeiro/research.md` (seção "Resultados dos spikes"). **Se falhar**, aplicar o plano B do `research.md` (servidor em `.mcp.json` próprio + hooks em `settings.local.json` não versionado) e ajustar T018.
+- [x] T006 Baixar `actual-mcp-server@0.22.46` com `npm pack` em diretório novo do scratchpad (sem executar) e comparar os nomes reais das ferramentas com `specs/005-servidor-mcp-financeiro/contracts/tool-surface.md`; corrigir o contrato onde divergir
 
 ### Testes da Fundação (escrever primeiro; DEVEM falhar)
 
-- [ ] T007 [P] `packages/custom/mcp-financeiro/src/launch.test.ts`: `buildLaunchSpec` (a) força `MCP_READ_ONLY=true` mesmo se o ambiente disser `false`; (b) recusa versão não fixada (faixa, `latest`); (c) inclui `--stdio`; (d) deixa a senha só no `env` do filho, nunca em `args` nem na descrição textual; (e) falta de credencial gera erro distinguível por causa (url, senha, sync id); (f) `MCP_TOOLS`/`MCP_TOOLSETS` derivam da lista fechada
-- [ ] T008 [P] `packages/custom/mcp-financeiro/src/mask-pii.test.ts`: CPF com e sem pontuação → `[CPF]`; CNPJ → `[CNPJ]`; cartão de 13–19 dígitos **que passa em Luhn** → `[CARTAO]` e um que não passa fica intacto; `ag`/`agência`/`conta`/`cc` + dígitos → rótulo + `[NUM]`; **não altera** `R$ 1.234,56`, `-12345`, datas ISO, UUID; idempotente; entrada inesperada (null, número, objeto) não lança
-- [ ] T009 [P] `packages/custom/mcp-financeiro/src/hook-mask.test.ts`: dado o JSON de entrada do `PostToolUse` (formato do T005), devolve o JSON de saída com o texto mascarado; falha interna → devolve a resposta original e **não** escreve o conteúdo no stderr
-- [ ] T010 [P] `packages/custom/mcp-financeiro/src/tool-surface.test.ts`: nenhuma ferramenta permitida termina em sufixo de escrita; `decidePreToolUse` permite as listadas e nega qualquer outra do servidor (inclusive nome inventado); ferramentas de outros servidores não são afetadas
-- [ ] T011 [P] `packages/custom/mcp-financeiro/src/agent-config.test.ts`: lê `.claude/agents/assistente-financeiro.md` e verifica (a) `tools` = lista permitida com o prefixo do servidor; (b) o servidor MCP usa o lançador e não traz segredo literal; (c) existem hooks `PreToolUse` e `PostToolUse` apontando para os binários; (d) existe a seção `## Definições` com a linha de sobra; (e) nenhuma ferramenta de escrita é citada como permitida
+- [x] T007 [P] `packages/custom/mcp-financeiro/src/launch.test.ts`: `buildLaunchSpec` (a) força `MCP_READ_ONLY=true` mesmo se o ambiente disser `false`; (b) recusa versão não fixada (faixa, `latest`); (c) inclui `--stdio`; (d) deixa a senha só no `env` do filho, nunca em `args` nem na descrição textual; (e) falta de credencial gera erro distinguível por causa (url, senha, sync id); (f) `MCP_TOOLS`/`MCP_TOOLSETS` derivam da lista fechada
+- [x] T008 [P] `packages/custom/mcp-financeiro/src/mask-pii.test.ts`: CPF com e sem pontuação → `[CPF]`; CNPJ → `[CNPJ]`; cartão de 13–19 dígitos **que passa em Luhn** → `[CARTAO]` e um que não passa fica intacto; `ag`/`agência`/`conta`/`cc` + dígitos → rótulo + `[NUM]`; **não altera** `R$ 1.234,56`, `-12345`, datas ISO, UUID; idempotente; entrada inesperada (null, número, objeto) não lança
+- [x] T009 [P] `packages/custom/mcp-financeiro/src/hook-mask.test.ts`: dado o JSON de entrada do `PostToolUse` (formato do T005), devolve o JSON de saída com o texto mascarado; falha interna → devolve a resposta original e **não** escreve o conteúdo no stderr
+- [x] T010 [P] `packages/custom/mcp-financeiro/src/tool-surface.test.ts`: nenhuma ferramenta permitida termina em sufixo de escrita; `decidePreToolUse` permite as listadas e nega qualquer outra do servidor (inclusive nome inventado); ferramentas de outros servidores não são afetadas
+- [x] T011 [P] `packages/custom/mcp-financeiro/src/agent-config.test.ts`: lê `.claude/agents/assistente-financeiro.md` e verifica (a) `tools` = lista permitida com o prefixo do servidor; (b) o servidor MCP usa o lançador e não traz segredo literal; (c) existem hooks `PreToolUse` e `PostToolUse` apontando para os binários; (d) existe a seção `## Definições` com a linha de sobra; (e) nenhuma ferramenta de escrita é citada como permitida
 - [ ] T012 Rodar `corepack yarn workspace @actual-financas/custom test` e **registrar em `verification.md` que os cinco arquivos falham** (vermelho) antes de implementar
 
 ### Implementação da Fundação
 
-- [ ] T013 `packages/custom/mcp-financeiro/src/tool-surface.ts`: `ALLOWED_TOOLS` (da lista de T006), `isAllowed`, `decidePreToolUse`
-- [ ] T014 `packages/custom/mcp-financeiro/src/launch.ts`: `PINNED_VERSION = '0.22.46'`, `buildLaunchSpec(credentials)` puro, usando T013
-- [ ] T015 `packages/custom/mcp-financeiro/src/mask-pii.ts`: máscara pura, com validação de Luhn
-- [ ] T016 `packages/custom/mcp-financeiro/src/hook-mask.ts` e `packages/custom/mcp-financeiro/src/hook-guard.ts`: adaptadores finos de stdin/stdout para `PostToolUse` e `PreToolUse`
-- [ ] T017 `packages/custom/mcp-financeiro/bin/actual-mcp-financeiro.mjs` (lê as três credenciais do Chaveiro com `security find-generic-password`, chama `buildLaunchSpec` e executa `npx` fixado) e `packages/custom/mcp-financeiro/bin/hook-mask.mjs` + `bin/hook-guard.mjs` (só chamam T016); nenhuma lógica nova nos `bin/`
-- [ ] T018 `.claude/agents/assistente-financeiro.md`: cabeçalho (`name`, `description` em pt-BR, `tools`, `mcpServers`, `hooks`) e as seções vazias `## Papel`, `## Definições` (com a linha `sobra = receita − despesa (provisório)`), `## Protocolo de resposta` (copiar de `contracts/answer-protocol.md`), `## Recusas`
-- [ ] T019 Rodar `corepack yarn workspace @actual-financas/custom test` (verde), `corepack yarn typecheck` e `corepack yarn lint`; registrar em `verification.md`
+- [x] T013 `packages/custom/mcp-financeiro/src/tool-surface.ts`: `ALLOWED_TOOLS` (da lista de T006), `isAllowed`, `decidePreToolUse`
+- [x] T014 `packages/custom/mcp-financeiro/src/launch.ts`: `PINNED_VERSION = '0.22.46'`, `buildLaunchSpec(credentials)` puro, usando T013
+- [x] T015 `packages/custom/mcp-financeiro/src/mask-pii.ts`: máscara pura, com validação de Luhn
+- [x] T016 `packages/custom/mcp-financeiro/src/hook-mask.ts` e `packages/custom/mcp-financeiro/src/hook-guard.ts`: adaptadores finos de stdin/stdout para `PostToolUse` e `PreToolUse`
+- [x] T017 `packages/custom/mcp-financeiro/bin/actual-mcp-financeiro.mjs` (lê as três credenciais do Chaveiro com `security find-generic-password`, chama `buildLaunchSpec` e executa `npx` fixado) e `packages/custom/mcp-financeiro/bin/hook-mask.mjs` + `bin/hook-guard.mjs` (só chamam T016); nenhuma lógica nova nos `bin/`
+- [x] T018 `.claude/agents/assistente-financeiro.md`: cabeçalho (`name`, `description` em pt-BR, `tools`, `mcpServers`, `hooks`) e as seções vazias `## Papel`, `## Definições` (com a linha `sobra = receita − despesa (provisório)`), `## Protocolo de resposta` (copiar de `contracts/answer-protocol.md`), `## Recusas`
+- [x] T019 Rodar `corepack yarn workspace @actual-financas/custom test` (verde), `corepack yarn typecheck` e `corepack yarn lint`; registrar em `verification.md`
 
 **Checkpoint**: servidor sobe só em leitura, resposta passa pela máscara, e o subagente existe. As histórias podem começar.
+
+---
+
+## Fase 2B — Servidor próprio mínimo (emenda D-1)
+
+> Substitui o uso do `actual-mcp-server` pronto. Bloqueia a T023.
+
+- [x] T040 Dependências em `packages/custom/package.json`: `@modelcontextprotocol/sdk`, `zod` e `actual-api-client` (alias `npm:@actual-app/api@26.10.0`); `corepack yarn install` com diff de `yarn.lock` só aditivo
+- [x] T041 [P] Testes de `packages/custom/mcp-financeiro/src/analysis.test.ts` (devem falhar primeiro): gasto por categoria e grupo, transferência fora, transação dividida pelos filhos, crédito/estorno separado, comparação entre períodos, fluxo (receita, despesa, sobra), sem categoria, período vazio
+- [x] T042 `packages/custom/mcp-financeiro/src/analysis.ts`: funções puras sobre linhas de transação em centavos
+- [x] T043 [P] `packages/custom/mcp-financeiro/src/source.ts`: adaptador de leitura sobre a API do Actual (sessionToken, download do orçamento, consultas); só importa funções de leitura
+- [x] T044 [P] Teste `packages/custom/mcp-financeiro/src/server.test.ts`: todas as ferramentas registradas são de leitura e toda resposta sai mascarada
+- [x] T045 `packages/custom/mcp-financeiro/src/server.ts` e `bin/servidor.mjs`: servidor MCP `stdio` com as ferramentas de leitura
+- [x] T046 Atualizar `launch.ts`/`launch.test.ts` e `bin/actual-mcp-financeiro.mjs` para lançar o nosso servidor com `session-token` do Chaveiro; atualizar `tool-surface.ts`, o subagente e `agent-config.test.ts` para as ferramentas novas
 
 ---
 
@@ -80,12 +94,12 @@
 
 ### Verificação da História 1 (definir antes de implementar)
 
-- [ ] T020 [US1] Acrescentar ao `specs/005-servidor-mcp-financeiro/quickstart.md` a seção "Orçamento de teste": subir o servidor local (`corepack yarn start:server-dev`), criar o orçamento demo ("View demo") e semear, com valores conhecidos, despesas em 3 categorias em dois meses, um pagamento de fatura ligado como transferência, um estorno, e uma transação cuja descrição contém `CPF 123.456.789-09`; listar o resultado **esperado** de cada pergunta dos casos 1–4 e 11
+- [x] T020 [US1] Acrescentar ao `specs/005-servidor-mcp-financeiro/quickstart.md` a seção "Orçamento de teste": subir o servidor local (`corepack yarn start:server-dev`), criar o orçamento demo ("View demo") e semear, com valores conhecidos, despesas em 3 categorias em dois meses, um pagamento de fatura ligado como transferência, um estorno, e uma transação cuja descrição contém `CPF 123.456.789-09`; listar o resultado **esperado** de cada pergunta dos casos 1–4 e 11
 
 ### Implementação da História 1
 
-- [ ] T021 [US1] Preencher `## Protocolo de resposta` e `## Papel` em `.claude/agents/assistente-financeiro.md`: gasto por categoria e grupo (`actual_transactions_aggregate`, `excludeTransfers=true`), comparação entre períodos, formatação pt-BR/BRL, período sempre explícito, resposta "não há dados no período" (nunca zeros)
-- [ ] T022 [US1] Em `.claude/agents/assistente-financeiro.md`, instruir o detalhe por categoria/estabelecimento/conta (`actual_transactions_filter`, ordenado por valor) e o tratamento de estorno e de transação dividida
+- [x] T021 [US1] Preencher `## Protocolo de resposta` e `## Papel` em `.claude/agents/assistente-financeiro.md`: gasto por categoria e grupo (`actual_transactions_aggregate`, `excludeTransfers=true`), comparação entre períodos, formatação pt-BR/BRL, período sempre explícito, resposta "não há dados no período" (nunca zeros)
+- [x] T022 [US1] Em `.claude/agents/assistente-financeiro.md`, instruir o detalhe por categoria/estabelecimento/conta (`actual_transactions_filter`, ordenado por valor) e o tratamento de estorno e de transação dividida
 - [ ] T023 [US1] [Pedro] Executar os casos 1–4 e 11 contra o orçamento de teste e, depois, contra o real; registrar resultados e divergências em `specs/005-servidor-mcp-financeiro/verification.md` (critério CS-002: ao centavo)
 - [ ] T024 [US1] Verificar a máscara de ponta a ponta: perguntar pela transação com `CPF 123.456.789-09` e confirmar `[CPF]` na resposta; registrar em `verification.md`
 
@@ -179,14 +193,14 @@
 
 ## Resumo
 
-| Fase                | Tarefas | Intervalo   |
-| ------------------- | :-----: | ----------- |
-| Setup               |    4    | T001–T004   |
-| Fundação            |   15    | T005–T019   |
-| História 1 (MVP)    |    5    | T020–T024   |
-| História 2          |    5    | T025–T029   |
-| História 3          |    3    | T030–T032   |
-| Polimento           |    7    | T033–T039   |
-| **Total**           | **39**  |             |
+| Fase             | Tarefas | Intervalo |
+| ---------------- | :-----: | --------- |
+| Setup            |    4    | T001–T004 |
+| Fundação         |   15    | T005–T019 |
+| História 1 (MVP) |    5    | T020–T024 |
+| História 2       |    5    | T025–T029 |
+| História 3       |    3    | T030–T032 |
+| Polimento        |    7    | T033–T039 |
+| **Total**        | **39**  |           |
 
 Tarefas que dependem do Pedro: T023, T025, T029, T032, T034, T035, T036.
