@@ -188,7 +188,7 @@ sobrou".
   futuras sejam visíveis como compromisso.
 - **RF-010**: Sistema DEVE produzir um resumo mensal com gasto por categoria e
   comparação com o mês anterior.
-- **RF-011**: Sistema NÃO DEVE enviar número de conta, número de cartão, CPF,
+- **RF-011**: Sistema NÃO DEVE enviar número de conta, número de cartão,
   credencial ou senha para qualquer provider externo de IA.
 - **RF-012**: Sistema DEVE apresentar toda a interface em português do Brasil, com
   valores em BRL.
