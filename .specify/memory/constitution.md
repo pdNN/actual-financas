@@ -1,20 +1,32 @@
 <!--
 Relatório de Impacto de Sincronização
-- Versão: 1.0.0 → 1.1.0
-- Princípios modificados: VIII — Privacidade explícita. Passa a distinguir
-  "provider de IA" de "agregador de Open Finance regulado", que antes não
-  estava coberto. A redação anterior proibia enviar número de conta e de
-  cartão a qualquer terceiro, o que impediria usar Open Finance mesmo com
-  consentimento dado no próprio banco.
+- Versão: 1.1.0 → 1.2.0
+- Princípios modificados: VIII.a — Provider de IA. O CPF que aparece na
+  descrição ou no payee de uma transação deixa de estar na lista de dados
+  proibidos e passa a poder ir para o provider de IA, inclusive o Claude Code.
+  Seguem proibidos: número de conta, número de cartão, credencial bancária,
+  token de sessão, senha e e-mail dos usuários. Entra uma salvaguarda nova: o
+  CPF NÃO DEVE ser gravado em log nem em arquivo do repositório.
 - Seções adicionadas: nenhuma.
 - Seções removidas: nenhuma.
-- Motivo: a avaliação do Pluggy.ai para sincronizar o cartão de crédito
-  esbarrou num caso que a constituição não previa. Emenda antes da feature,
-  para virar regra em vez de exceção.
-- Propagação: CLAUDE.md (tabela de restrições) e AGENTS.md (§10).
-- Pendências: nenhuma.
+- Classificação: MENOR. Relaxa um item da lista de proibições de VIII.a sem
+  remover o princípio nem redefinir VIII.b; a regra continua estreita e a
+  salvaguarda de log foi acrescentada.
+- Motivo (decisão do dono do projeto, Pedro, 2026-10-25): na prática, o payee de
+  entradas por Pix costuma ser só o CPF de quem pagou. Mascarado, o Claude não
+  distingue salário de transferência, o que impede classificar receita e calcular
+  a sobra (spec 005). O Pedro aceita que o CPF vá ao provider de IA para isso.
+- Propagação: CLAUDE.md e AGENTS.md (tabela "Privacidade — IA");
+  specs/000-produto/spec.md (RF-011); spec 005 (RF-012 e mascaramento de CPF em
+  mask-pii.ts e hook-mask.ts, a remover na própria spec 005).
+- Pendências: TODO(INFRA): infra/README.md ainda diz, na linha do
+  Anthropic/Claude, que CPF/CNPJ são mascarados antes de chegar ao Claude. Deve
+  ser corrigido no mesmo momento em que o mascaramento de CPF for removido do
+  código (fora do escopo desta emenda, que não toca em infra/).
 
 Histórico anterior
+- 1.0.0 → 1.1.0 (2026-08-10): VIII separa provider de IA de agregador de Open
+  Finance regulado.
 - (inexistente) → 1.0.0: ratificação inicial. Princípios I a VIII. Consolidou e
   substituiu .cursor/rules/instructions.mdc, .github/copilot-instructions.md e
   .windsurf/rules/instructions.md.
@@ -181,9 +193,19 @@ foi o erro da versão 1.0.0 desta constituição.
 **PODE** ser enviado:
 descrição da transação, valor, data, nome da categoria, nome do payee.
 
+**PODE**, também, o CPF quando ele aparece na descrição ou no payee de uma
+transação. O banco costuma identificar quem pagou ou recebeu um Pix só pelo CPF,
+e sem ele não dá para distinguir salário de transferência.
+
 **NÃO DEVE** ser enviado, nunca:
-número de conta, número de cartão, CPF, credencial bancária, token de sessão,
-senha, e-mail dos usuários.
+número de conta, número de cartão, credencial bancária, token de sessão, senha,
+e-mail dos usuários.
+
+**Salvaguardas do CPF**: ele NÃO DEVE ser gravado em log, nem em arquivo do
+repositório (código, teste, fixture, documentação, spec); NÃO DEVE ser enviado
+como atributo cadastral dos usuários. Só circula como parte do texto da
+transação. Dados reais do casal nunca entram como fixture: o CPF de teste é
+sempre fictício.
 
 A regra aqui é estreita de propósito: o provider de IA não precisa saber de quem
 é a conta para adivinhar uma categoria.
@@ -273,4 +295,4 @@ fragmentaria a fonte de verdade.
   avaliada e rejeitada. Violação não justificada bloqueia a implementação.
 - Quem aprova spec, plano e emendas: Pedro.
 
-**Versão**: 1.1.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-08-10
+**Versão**: 1.2.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-10-25

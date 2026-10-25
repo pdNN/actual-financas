@@ -143,14 +143,14 @@ verde antes de qualquer commit.
 
 ## Restrições que doem na prática
 
-| Restrição                             | Consequência                                                                                                                                                                         |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| VM `e2-micro`, 384MB para o container | Nada de dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                                           |
-| SQLite local                          | Sem banco externo.                                                                                                                                                                   |
-| pt-BR / BRL                           | Toda string de usuário via `Trans`; números com `FinancialText` ou `styles.tnum`.                                                                                                    |
-| Privacidade — IA                      | Descrição, valor, data e categoria **podem** ir para provider de IA. Conta, cartão, CPF, credencial e senha **nunca**. Log sem PII. Chave de API só no servidor.                     |
-| Privacidade — Open Finance            | Agregador regulado (Pluggy) **pode** receber conta, cartão, saldo e extrato, com consentimento dado no banco e revogável. Senha e token do banco **nunca** passam pelo nosso código. |
-| Qualidade                             | Sem novos `@ts-strict-ignore`, `eslint-disable`, `any`, `unknown` sem justificativa no plano.                                                                                        |
+| Restrição                             | Consequência                                                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| VM `e2-micro`, 384MB para o container | Nada de dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                                                                                                 |
+| SQLite local                          | Sem banco externo.                                                                                                                                                                                                                         |
+| pt-BR / BRL                           | Toda string de usuário via `Trans`; números com `FinancialText` ou `styles.tnum`.                                                                                                                                                          |
+| Privacidade — IA                      | Descrição, valor, data e categoria **podem** ir para provider de IA. Conta, cartão, credencial e senha **nunca**. CPF pode (constituição 1.2.0), mas nunca em log nem em arquivo do repositório. Log sem PII. Chave de API só no servidor. |
+| Privacidade — Open Finance            | Agregador regulado (Pluggy) **pode** receber conta, cartão, saldo e extrato, com consentimento dado no banco e revogável. Senha e token do banco **nunca** passam pelo nosso código.                                                       |
+| Qualidade                             | Sem novos `@ts-strict-ignore`, `eslint-disable`, `any`, `unknown` sem justificativa no plano.                                                                                                                                              |
 
 ---
 
