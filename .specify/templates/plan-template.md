@@ -41,7 +41,7 @@
 
 - [ ] **I — Especificação antes de código**: existe `spec.md` aprovada para esta feature.
 - [ ] **II — Compatibilidade com upstream**: código novo em diretório custom; edições em arquivos do upstream, se houver, usam os marcadores `>>> CUSTOM` / `<<< CUSTOM` e estão listadas aqui.
-- [ ] **III — Determinístico antes de IA**: a camada determinística foi tentada primeiro; a IA só atua no residual; no processamento automático, saída de IA é sugestão revisável. Se a feature deixa um assistente conversacional gravar via ferramenta, as sete condições do III-b estão atendidas e os riscos aceitos estão na spec.
+- [ ] **III — Determinístico antes de IA**: a camada determinística foi tentada primeiro; a IA só atua no residual. Se a IA grava, as quatro salvaguardas do princípio estão atendidas (identidade, auditoria com origem sem PII, backup, risco informado).
 - [ ] **IV — IA plugável e barata**: nenhum provider hardcoded; chamadas em lote; custo por lote observável.
 - [ ] **V — Orçamento da VM**: nada de dependência pesada no `sync-server`; trabalho caro roda fora da VM.
 - [ ] **VI — pt-BR e BRL**: strings de usuário via i18n; números financeiros com `FinancialText`/`styles.tnum`.

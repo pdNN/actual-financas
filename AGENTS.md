@@ -252,13 +252,13 @@ Na tela inicial, "View demo" cria um orçamento de exemplo para testar sem dados
 
 ## 10. Restrições de produção
 
-| Restrição                          | Consequência prática                                                                                                                                                                            |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2-micro`, 384MB para o container | Sem dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                                                          |
-| SQLite local, sem banco externo    | Migrações em `packages/loot-core/migrations/`.                                                                                                                                                  |
-| IA plugável                        | Nenhum provider hardcoded; chamadas em lote; custo observável.                                                                                                                                  |
-| Determinístico antes de IA         | Regras nativas e cache primeiro; IA só no resíduo; no processamento automático, saída de IA é sugestão revisável. Assistente conversacional pode gravar via MCP sob as sete condições do III-b. |
-| Privacidade — IA                   | Descrição, valor, data e categoria podem ir para IA externa. Conta, cartão, CPF, credencial e senha, nunca. Log sem PII. Chave de API só no servidor.                                           |
-| Privacidade — Open Finance         | Agregador regulado pelo BACEN pode receber conta, cartão, saldo e extrato, sob consentimento revogável dado no próprio banco. Senha e token do banco nunca passam pelo nosso servidor.          |
+| Restrição                          | Consequência prática                                                                                                                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2-micro`, 384MB para o container | Sem dependência pesada no `sync-server`. OCR, backfill e lote grande rodam fora da VM.                                                                                                 |
+| SQLite local, sem banco externo    | Migrações em `packages/loot-core/migrations/`.                                                                                                                                         |
+| IA plugável                        | Nenhum provider hardcoded; chamadas em lote; custo observável.                                                                                                                         |
+| Determinístico antes de IA         | Regras nativas e cache primeiro; IA só no resíduo. A IA pode gravar sem confirmação imposta (III, emenda 2.0.0), com identidade, auditoria com origem, backup e risco informado.       |
+| Privacidade — IA                   | Descrição, valor, data e categoria podem ir para IA externa. Conta, cartão, CPF, credencial e senha, nunca. Log sem PII. Chave de API só no servidor.                                  |
+| Privacidade — Open Finance         | Agregador regulado pelo BACEN pode receber conta, cartão, saldo e extrato, sob consentimento revogável dado no próprio banco. Senha e token do banco nunca passam pelo nosso servidor. |
 
 Detalhes e a redação normativa: `.specify/memory/constitution.md`.
