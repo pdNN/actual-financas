@@ -72,7 +72,10 @@ Depois: exportar de novo e comparar o conteúdo das tabelas `transactions`,
 ## 5. Provar a privacidade (RF-012, RF-013, RF-014)
 
 - Colocar uma transação de teste cuja descrição contenha `CPF 123.456.789-09` e
-  perguntar por ela: a resposta mostra `[CPF]`.
+  perguntar por ela: a resposta mostra o CPF fictício (liberado desde a
+  constituição 1.2.0). Para provar a máscara que continua valendo, usar uma
+  descrição com `conta 12345-6` ou um cartão de teste: a resposta mostra
+  `conta [NUM]` / `[CARTAO]`.
 - Procurar o token de sessão no repositório, no histórico do shell e nos logs do servidor:
   `git grep` e `grep -r` não devem achá-la.
 - Abrir o arquivo de log do servidor após a bateria e procurar descrições e
@@ -102,7 +105,7 @@ Critério: continuar abaixo do limite de 384 MB com folga.
 ## Orçamento de teste (para verificar sem dados reais)
 
 Serve para as verificações das três histórias sem usar dados do casal, e para
-provar a máscara de privacidade (há um CPF fictício de propósito).
+provar a máscara de privacidade de conta e cartão e a passagem do CPF fictício.
 
 ### Montagem
 
@@ -126,7 +129,7 @@ provar a máscara de privacidade (há um CPF fictício de propósito).
 | Gasto por categoria em setembro                          | Mercado R$ 550,00 · Lazer R$ 260,00 · Transporte R$ 60,00 · **total R$ 870,00**                                      |
 | Gasto por categoria em agosto                            | Mercado R$ 450,00 · Lazer R$ 120,00 · Transporte R$ 80,00 · **total R$ 650,00**                                      |
 | Comparar setembro com agosto                             | Mercado +R$ 100,00 (+22,2%) · Lazer +R$ 140,00 (+116,7%) · Transporte −R$ 20,00 (−25,0%) · total +R$ 220,00 (+33,8%) |
-| Maiores gastos de Lazer em setembro                      | Cinema Real R$ 250,00, depois PIX JOAO R$ 10,00 (com `[CPF]` no lugar do CPF)                                        |
+| Maiores gastos de Lazer em setembro                      | Cinema Real R$ 250,00, depois PIX JOAO R$ 10,00 (com o CPF fictício visível)                                         |
 | O pagamento de fatura de R$ 1.000,00 entra como despesa? | Não: nem no total, nem em qualquer categoria                                                                         |
 | Gasto em outubro de 2026                                 | "Não há dados no período"                                                                                            |
 | Quanto sobrou em setembro                                | Receita R$ 5.000,00 − despesa R$ 870,00 = **R$ 4.130,00**, com a definição à vista                                   |

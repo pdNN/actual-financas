@@ -20,7 +20,7 @@ todas fora de arquivos do upstream**:
 1. um **lançador** que monta a configuração segura (leitura apenas, versão
    fixada, senha vinda do chaveiro do macOS, nunca de arquivo);
 2. uma **máscara de dados sensíveis** que limpa as respostas antes de o Claude
-   vê-las (a constituição proíbe CPF, número de conta e de cartão chegarem ao
+   vê-las (a constituição proíbe número de conta e de cartão chegarem ao
    provider de IA, e o servidor só redige o _log_, não a _resposta_);
 3. um **subagente `assistente-financeiro`** que carrega as definições de negócio
    (sobra = receita menos despesa, transferência não é despesa, checar
@@ -76,14 +76,14 @@ não nesta.
 
 ### Privacidade (princípio VIII)
 
-| Dado                                                   | Pode ir ao Claude? | Como é garantido                                                                                                  |
-| ------------------------------------------------------ | :----------------: | ----------------------------------------------------------------------------------------------------------------- |
-| Descrição, valor, data, categoria, payee               |        Sim         | Fluxo normal                                                                                                      |
-| Nome amigável da conta                                 |        Sim         | Fluxo normal                                                                                                      |
-| Número de conta/cartão, CPF/CNPJ em texto de transação |      **Não**       | `mask-pii` na resposta (PostToolUse do subagente). Teste cobre formatos com e sem pontuação                       |
-| Senha do Actual, senha de criptografia do orçamento    |      **Não**       | Só no chaveiro do macOS; o lançador injeta no ambiente do processo filho; nunca em arquivo, argumento nem log     |
-| Identificadores de sessão do servidor                  |      **Não**       | Não são devolvidos pelas ferramentas de leitura usadas (verificar no quickstart, passo 5)                         |
-| Log do servidor                                        |       Local        | O servidor redige segredos no log (#220). RF-014: verificado no quickstart, passo 5, procurando descrição e valor |
+| Dado                                                                        | Pode ir ao Claude? | Como é garantido                                                                                                  |
+| --------------------------------------------------------------------------- | :----------------: | ----------------------------------------------------------------------------------------------------------------- |
+| Descrição, valor, data, categoria, payee                                    |        Sim         | Fluxo normal                                                                                                      |
+| Nome amigável da conta                                                      |        Sim         | Fluxo normal                                                                                                      |
+| Número de conta/cartão, CNPJ em texto de transação (CPF pode, const. 1.2.0) |      **Não**       | `mask-pii` na resposta (PostToolUse do subagente). Teste cobre formatos com e sem pontuação                       |
+| Senha do Actual, senha de criptografia do orçamento                         |      **Não**       | Só no chaveiro do macOS; o lançador injeta no ambiente do processo filho; nunca em arquivo, argumento nem log     |
+| Identificadores de sessão do servidor                                       |      **Não**       | Não são devolvidos pelas ferramentas de leitura usadas (verificar no quickstart, passo 5)                         |
+| Log do servidor                                                             |       Local        | O servidor redige segredos no log (#220). RF-014: verificado no quickstart, passo 5, procurando descrição e valor |
 
 ---
 
@@ -116,7 +116,7 @@ packages/custom/
     ├── src/
     │   ├── tool-surface.ts      # lista fechada de ferramentas + decisão do PreToolUse
     │   ├── launch.ts            # monta comando/ambiente do servidor (puro, testável)
-    │   ├── mask-pii.ts          # mascara CPF/CNPJ/conta/cartão em texto (puro)
+    │   ├── mask-pii.ts          # mascara CNPJ/conta/cartão em texto (puro; CPF passa, const. 1.2.0)
     │   ├── hook-mask.ts / hook-guard.ts   # adaptadores de stdin/stdout dos hooks
     │   └── *.test.ts            # um teste por arquivo acima, mais agent-config.test.ts
     └── bin/                     # pontos de entrada finos (chaveiro + hooks)

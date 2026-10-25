@@ -1,21 +1,12 @@
 // Máscara determinística de dados que a constituição (princípio VIII) proíbe
-// de chegar ao provider de IA: CPF, CNPJ, número de cartão e de conta/agência.
+// de chegar ao provider de IA: CNPJ, número de cartão e de conta/agência.
+// O CPF NÃO é mascarado desde a constituição 1.2.0 (decisão do Pedro,
+// 2026-10-25): o payee de um Pix costuma ser só o CPF, e sem ele não dá para
+// distinguir salário de transferência.
 // Sem modelo, sem rede: expressões regulares e dígitos verificadores.
 
 function digitsOf(text: string): number[] {
   return [...text.replace(/\D/g, '')].map(Number);
-}
-
-function isValidCpf(text: string): boolean {
-  const d = digitsOf(text);
-  if (d.length !== 11 || d.every(x => x === d[0])) return false;
-  const check = (len: number) => {
-    let sum = 0;
-    for (let i = 0; i < len; i++) sum += d[i] * (len + 1 - i);
-    const rest = (sum * 10) % 11;
-    return rest === 10 ? 0 : rest;
-  };
-  return check(9) === d[9] && check(10) === d[10];
 }
 
 function isValidCnpj(text: string): boolean {
@@ -50,9 +41,7 @@ function passesLuhn(text: string): boolean {
 
 const CNPJ_PUNCTUATED =
   /(?<![\d.\-/])\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}(?![\d])/g;
-const CPF_PUNCTUATED = /(?<![\d.\-/])\d{3}\.\d{3}\.\d{3}-\d{2}(?![\d])/g;
 const DIGIT_RUN_14 = /(?<![\d.,\-/])\d{14}(?![\d.,\-/])/g;
-const DIGIT_RUN_11 = /(?<![\d.,\-/])\d{11}(?![\d.,\-/])/g;
 // 13 a 19 dígitos, com espaços ou hífens entre grupos.
 const CARD_CANDIDATE = /(?<![\d.,\-/])\d(?:[ -]?\d){12,18}(?![\d.,\-/])/g;
 // "ag 1234", "agência: 0001", "conta 56789-0", "cc 123456-7".
@@ -64,12 +53,8 @@ export function maskPii<T>(value: T): T {
 
   let text: string = value;
   text = text.replace(CNPJ_PUNCTUATED, '[CNPJ]');
-  text = text.replace(CPF_PUNCTUATED, '[CPF]');
   text = text.replace(DIGIT_RUN_14, match =>
     isValidCnpj(match) ? '[CNPJ]' : match,
-  );
-  text = text.replace(DIGIT_RUN_11, match =>
-    isValidCpf(match) ? '[CPF]' : match,
   );
   text = text.replace(CARD_CANDIDATE, match =>
     passesLuhn(match) ? '[CARTAO]' : match,

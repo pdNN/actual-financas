@@ -127,15 +127,15 @@ describe('createFinancasServer', () => {
     expect(data.definition).toMatch(/receita.*despesa/i);
   });
 
-  it('toda resposta sai mascarada (CPF nas notas)', async () => {
+  it('CPF nas notas chega ao Claude; conta e cartão não (constituição 1.2.0)', async () => {
     const client = await connect();
     const text = await call(client, 'transacoes', {
       inicio: '2026-09-01',
       fim: '2026-09-30',
       categoria: 'Lazer',
     });
-    expect(text).not.toContain('123.456.789-09');
-    expect(text).toContain('[CPF]');
+    expect(text).toContain('123.456.789-09');
+    expect(text).not.toContain('[CPF]');
   });
 
   it('período sem dados é dito explicitamente', async () => {

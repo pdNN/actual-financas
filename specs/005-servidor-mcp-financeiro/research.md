@@ -24,21 +24,21 @@
 
 ### Lacunas frente à spec
 
-| Requisito                                     | Coberto pelo servidor? | Como fechar                                                                                                   |
-| --------------------------------------------- | :--------------------: | ------------------------------------------------------------------------------------------------------------- |
-| RF-001, 002, 003 (gasto, comparação, detalhe) |          Sim           | `transactions_aggregate`, `transactions_summary_by_category`, `transactions_filter`                           |
-| RF-004 (transferência não é despesa)          |          Sim           | `excludeTransfers`, `account_flow_summary`. **Limite**: só vale para transferências ligadas por `transfer_id` |
-| RF-005 (sem categoria)                        |          Sim           | `transactions_uncategorized`                                                                                  |
-| RF-006 (completude junto da análise)          |        **Não**         | Protocolo do subagente (D-4): sempre chamar `uncategorized` e consultar a última data por conta               |
-| RF-007 (duplicatas, sem apagar)               |  **Não** (só `merge`)  | `actual_query_run` com agrupamento por data+valor+descrição (D-5; confirmar no spike S-2)                     |
-| RF-008 (compromissos futuros)                 |        Parcial         | `schedules_get`, `recurring_expenses_summary`. Parcela só aparece se estiver agendada                         |
-| RF-009 (sobra = receita − despesa)            |         Quase          | `account_flow_summary` já separa receita e despesa externas; o subagente declara a definição (D-6)            |
-| RF-010, 011 (somente leitura)                 |          Sim           | `MCP_READ_ONLY=true` + camada extra no `PreToolUse` (D-2)                                                     |
-| **RF-012 (sem CPF/conta/cartão)**             |        **Não**         | Máscara na resposta (D-3). O servidor só protege o log                                                        |
-| RF-013 (senha só local)                       |    Sim, com cuidado    | Lançador lê do chaveiro (D-1); a senha é variável de ambiente do processo filho                               |
-| RF-014 (log sem PII)                          |      A verificar       | Teste no quickstart: rodar uma sessão e procurar descrição/valor no log                                       |
-| RF-015 (erros distinguíveis)                  |      A verificar       | Quickstart, passos de falha forçada (senha errada, servidor fora do ar)                                       |
-| RF-017 (não alterar a produção)               |          Sim           | Cliente comum do Actual; medir impacto (quickstart, passo 6)                                                  |
+| Requisito                                                   | Coberto pelo servidor? | Como fechar                                                                                                   |
+| ----------------------------------------------------------- | :--------------------: | ------------------------------------------------------------------------------------------------------------- |
+| RF-001, 002, 003 (gasto, comparação, detalhe)               |          Sim           | `transactions_aggregate`, `transactions_summary_by_category`, `transactions_filter`                           |
+| RF-004 (transferência não é despesa)                        |          Sim           | `excludeTransfers`, `account_flow_summary`. **Limite**: só vale para transferências ligadas por `transfer_id` |
+| RF-005 (sem categoria)                                      |          Sim           | `transactions_uncategorized`                                                                                  |
+| RF-006 (completude junto da análise)                        |        **Não**         | Protocolo do subagente (D-4): sempre chamar `uncategorized` e consultar a última data por conta               |
+| RF-007 (duplicatas, sem apagar)                             |  **Não** (só `merge`)  | `actual_query_run` com agrupamento por data+valor+descrição (D-5; confirmar no spike S-2)                     |
+| RF-008 (compromissos futuros)                               |        Parcial         | `schedules_get`, `recurring_expenses_summary`. Parcela só aparece se estiver agendada                         |
+| RF-009 (sobra = receita − despesa)                          |         Quase          | `account_flow_summary` já separa receita e despesa externas; o subagente declara a definição (D-6)            |
+| RF-010, 011 (somente leitura)                               |          Sim           | `MCP_READ_ONLY=true` + camada extra no `PreToolUse` (D-2)                                                     |
+| **RF-012 (sem conta/cartão; CPF liberado na const. 1.2.0)** |        **Não**         | Máscara na resposta (D-3). O servidor só protege o log                                                        |
+| RF-013 (senha só local)                                     |    Sim, com cuidado    | Lançador lê do chaveiro (D-1); a senha é variável de ambiente do processo filho                               |
+| RF-014 (log sem PII)                                        |      A verificar       | Teste no quickstart: rodar uma sessão e procurar descrição/valor no log                                       |
+| RF-015 (erros distinguíveis)                                |      A verificar       | Quickstart, passos de falha forçada (senha errada, servidor fora do ar)                                       |
+| RF-017 (não alterar a produção)                             |          Sim           | Cliente comum do Actual; medir impacto (quickstart, passo 6)                                                  |
 
 ---
 
@@ -84,7 +84,7 @@
 ### D-3 — Máscara de dados sensíveis na resposta
 
 - **Decisão**: `mask-pii.ts` substitui, no texto devolvido por qualquer
-  ferramenta do servidor, CPF (11 dígitos, com ou sem pontuação), CNPJ (14),
+  ferramenta do servidor, CNPJ (14; o CPF deixou de ser mascarado na constituição 1.2.0),
   números com cara de cartão (13–19 dígitos, validados por Luhn) e números de
   conta/agência quando aparecem com rótulo (`ag`, `agência`, `conta`, `cc`).
   Entra como `PostToolUse` com `updatedToolOutput` no cabeçalho do subagente.

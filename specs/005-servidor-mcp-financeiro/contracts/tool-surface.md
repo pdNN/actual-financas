@@ -37,12 +37,12 @@ Qualquer ferramenta cujo nome termine em `_create`, `_update`, `_delete`,
 Entrada: texto (qualquer resposta de ferramenta do servidor, serializada).
 Saída: o mesmo texto com:
 
-| Padrão                                           | Substituição     |
-| ------------------------------------------------ | ---------------- |
-| CPF: `123.456.789-09` ou 11 dígitos              | `[CPF]`          |
-| CNPJ: `12.345.678/0001-95` ou 14 dígitos         | `[CNPJ]`         |
-| Cartão: 13–19 dígitos que passam em Luhn         | `[CARTAO]`       |
-| `ag`/`agência` + dígitos; `conta`/`cc` + dígitos | rótulo + `[NUM]` |
+| Padrão                                           | Substituição            |
+| ------------------------------------------------ | ----------------------- |
+| CPF: `123.456.789-09` ou 11 dígitos              | _(passa; const. 1.2.0)_ |
+| CNPJ: `12.345.678/0001-95` ou 14 dígitos         | `[CNPJ]`                |
+| Cartão: 13–19 dígitos que passam em Luhn         | `[CARTAO]`              |
+| `ag`/`agência` + dígitos; `conta`/`cc` + dígitos | rótulo + `[NUM]`        |
 
 Propriedades exigidas (viram teste): idempotente; não altera valores monetários
 (`R$ 1.234,56`, `-12345`) nem datas (`2026-10-18`); não altera identificadores

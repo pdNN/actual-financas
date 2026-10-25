@@ -178,8 +178,11 @@ contra a lista de agendadas do Actual.
 - **RF-011**: Sistema DEVE recusar, com explicação, qualquer pedido de
   alteração de dados nesta versão.
 - **RF-012**: Sistema NÃO DEVE devolver ao Claude número de conta, número de
-  cartão, CPF, credencial bancária, token ou senha — somente nome amigável da
-  conta e os demais dados que a constituição permite (princípio VIII).
+  cartão, credencial bancária, token ou senha — somente nome amigável da
+  conta e os demais dados que a constituição permite (princípio VIII). O CPF
+  que aparece na descrição ou no payee de uma transação **pode** chegar ao
+  Claude (constituição 1.2.0, emenda de 2026-10-25), mas NÃO DEVE ser gravado
+  em log nem em arquivo do repositório.
 - **RF-013**: A senha de acesso ao servidor do Actual e qualquer outra
   credencial DEVEM ficar apenas na máquina do Pedro, fora do repositório e fora
   de qualquer arquivo versionado.
