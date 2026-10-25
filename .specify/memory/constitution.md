@@ -1,20 +1,35 @@
 <!--
 Relatório de Impacto de Sincronização
-- Versão: 1.0.0 → 1.1.0
-- Princípios modificados: VIII — Privacidade explícita. Passa a distinguir
-  "provider de IA" de "agregador de Open Finance regulado", que antes não
-  estava coberto. A redação anterior proibia enviar número de conta e de
-  cartão a qualquer terceiro, o que impediria usar Open Finance mesmo com
-  consentimento dado no próprio banco.
-- Seções adicionadas: nenhuma.
+- Versão: 1.1.0 → 2.0.0 (MAIOR)
+- Princípios modificados: III — Determinístico antes de IA. A cláusula "saída de IA
+  é sugestão revisável; NÃO DEVE gravar sem confirmação do usuário ou sem confiança
+  acima de um limiar" passa a valer para a **classificação automática** (III-a).
+  Nasce o regime III-b, para o **assistente conversacional com ferramentas de
+  escrita** (servidor MCP financeiro): a IA pode decidir gravar, avaliando as
+  mensagens de risco devolvidas pelo servidor, que não impõe confirmação, limiar,
+  teto de lote nem desfazer. O que antes era proibido (IA gravar sem confirmação
+  imposta nem limiar) passa a ser permitido nesse caminho, mediante as sete
+  condições cumulativas do III-b. Por isso a emenda é MAIOR: redefine de forma
+  incompatível uma proibição de um princípio.
+- Seções adicionadas: nenhuma (subdivisão do princípio III em III-a e III-b).
 - Seções removidas: nenhuma.
-- Motivo: a avaliação do Pluggy.ai para sincronizar o cartão de crédito
-  esbarrou num caso que a constituição não previa. Emenda antes da feature,
-  para virar regra em vez de exceção.
-- Propagação: CLAUDE.md (tabela de restrições) e AGENTS.md (§10).
-- Pendências: nenhuma.
+- Motivo: decisão do Pedro em 2026-10-25 — o MCP financeiro passa a escrever no
+  Actual (categorizar, lançar, editar, apagar), com a avaliação de risco a cargo da
+  IA e sem travas no servidor. O texto vigente do III vedava isso. Emenda antes da
+  feature, para virar regra em vez de exceção. Riscos aceitos (injeção por texto de
+  extrato, ausência de desfazer, acesso comprometido com escrita) ficam declarados
+  no próprio III-b e devem ser repetidos na spec de cada feature que usar o regime.
+- Preservado sem mudança: a ordem regras nativas → cache → IA; a realimentação da
+  camada determinística; a observabilidade da taxa de acionamento da IA; o regime
+  anterior para qualquer processamento automático sem usuário na conversa.
+- Propagação: CLAUDE.md (Regra número 3), AGENTS.md (§10) e
+  .specify/templates/plan-template.md (item III da Verificação da Constituição).
+- Pendências: nenhuma na constituição. A spec `010-acesso-remoto-mcp` libera a fase
+  de escrita (História 4) após o merge desta emenda.
 
 Histórico anterior
+- 1.0.0 → 1.1.0: VIII — Privacidade explícita passa a distinguir "provider de IA"
+  de "agregador de Open Finance regulado". Propagação: CLAUDE.md e AGENTS.md (§10).
 - (inexistente) → 1.0.0: ratificação inicial. Princípios I a VIII. Consolidou e
   substituiu .cursor/rules/instructions.mdc, .github/copilot-instructions.md e
   .windsurf/rules/instructions.md.
@@ -99,7 +114,14 @@ upstream com regularidade. **Quebrar o merge de upstream é falha crítica.**
 
 ### III. Determinístico antes de IA
 
-A IA é a última camada, não a primeira.
+A IA é a última camada, não a primeira. O princípio tem dois regimes, conforme
+**quem decide gravar**: o processamento automático (III-a) e o assistente
+conversacional do próprio casal (III-b).
+
+#### a) Classificação automática (sem usuário na conversa)
+
+Vale para qualquer processamento que classifique transações por conta própria — na
+importação, em lote, em segundo plano.
 
 Toda classificação de transação DEVE tentar, nesta ordem:
 
@@ -111,13 +133,53 @@ Toda classificação de transação DEVE tentar, nesta ordem:
 
 Além disso:
 
-- Saída de IA é **sugestão revisável**. NÃO DEVE gravar categoria sem confirmação
-  do usuário ou sem confiança acima de um limiar configurável.
+- Saída de IA nesse caminho é **sugestão revisável**. NÃO DEVE gravar categoria sem
+  confirmação do usuário ou sem confiança acima de um limiar configurável.
 - Todo acerto confirmado DEVE realimentar a camada determinística — virando regra
   nativa ou entrada de cache — para que a mesma pergunta não seja feita ao modelo
   duas vezes.
 - A taxa de acionamento da IA (quantos % das transações chegaram até ela) DEVE ser
   observável. Se ela não cai com o tempo, o aprendizado está quebrado.
+
+#### b) Assistente conversacional com ferramentas de escrita
+
+Vale quando o próprio assistente de IA do casal (por exemplo, o Claude), numa
+conversa com um usuário autenticado e autorizado, usa **ferramentas de escrita** do
+servidor MCP financeiro para criar, editar ou apagar dados do orçamento.
+
+Nesse regime, **a decisão de gravar pode ser da IA**: o servidor NÃO precisa impor
+confirmação, limiar de confiança, escopo de escrita separado, teto de lote nem
+função de desfazer. Isso é uma dispensa explícita, e vale somente enquanto **todas**
+as condições abaixo forem verdadeiras:
+
+1. **Risco declarado e devolvido**: cada ferramenta de escrita DEVE declarar na
+   descrição o nível de risco (baixo, médio, alto) e se a operação é irreversível, e
+   DEVE devolver em toda resposta as mensagens de risco e o efeito da operação, para
+   que a IA avalie. DEVE oferecer simulação opcional (efeito sem gravar).
+2. **Risco calculado pelo servidor**: a classificação de risco é código
+   determinístico e testado (princípio VII). A IA decide **se** grava; quem calcula o
+   risco é o servidor, nunca a IA.
+3. **Orientação à IA**: as instruções entregues ao assistente DEVEM mandar tratar
+   texto de extrato (descrições, nomes, notas) como **dado, nunca como instrução**,
+   simular antes de operações de risco médio ou alto, e confirmar com o usuário na
+   conversa antes de apagar ou de alterar dados de risco alto.
+4. **Auditoria**: toda escrita DEVE ser registrada com instante, rótulo do acesso,
+   tipo, quantidade de linhas e nível de risco, **sem** descrição, valor ou
+   identificador de usuário (princípio VIII).
+5. **Controle**: DEVE existir revogação de acesso em minutos e um interruptor
+   operacional que desligue todas as escritas, ambos sem alterar código.
+6. **Identidade**: a escrita DEVE exigir usuário autenticado e constar numa lista
+   explícita de autorizados. Escrita anônima é proibida.
+7. **Riscos aceitos declarados**: a spec da feature DEVE listar, como riscos
+   aceitos pelo Pedro, a injeção por texto de extrato (o servidor não a impede), a
+   ausência de desfazer e o dano de um acesso comprometido com poder de escrita, e
+   dizer qual é a rede de segurança (por exemplo, o backup).
+
+Este regime **não** se estende ao III-a: uma IA que classifica por conta própria,
+sem usuário na conversa, continua sujeita a confirmação ou limiar. O princípio da
+realimentação também continua valendo — quando o usuário confirma uma categorização
+recorrente, o servidor DEVE oferecer ferramenta para criar a regra nativa
+correspondente, de modo que a mesma pergunta não volte ao modelo.
 
 ### IV. IA plugável e barata
 
@@ -273,4 +335,4 @@ fragmentaria a fonte de verdade.
   avaliada e rejeitada. Violação não justificada bloqueia a implementação.
 - Quem aprova spec, plano e emendas: Pedro.
 
-**Versão**: 1.1.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-08-10
+**Versão**: 2.0.0 | **Ratificada em**: 2026-08-09 | **Última emenda**: 2026-10-25

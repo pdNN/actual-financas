@@ -96,9 +96,16 @@ Ordem obrigatória para classificar transação:
 2. Cache de descrição normalizada.
 3. IA, só no que sobrou.
 
-Saída de IA é **sugestão revisável** — nunca grava categoria sozinha sem
-confirmação ou sem confiança acima do limiar. Todo acerto confirmado realimenta a
-camada determinística.
+No processamento **automático** (importação, lote, segundo plano), saída de IA é
+**sugestão revisável** — nunca grava categoria sozinha sem confirmação ou sem
+confiança acima do limiar. Todo acerto confirmado realimenta a camada determinística.
+
+Exceção declarada (III-b, emenda 2.0.0): o **assistente conversacional** do casal
+(Claude, via MCP financeiro) pode decidir gravar, avaliando as mensagens de risco que
+a ferramenta devolve — sem confirmação, limiar, teto nem desfazer impostos pelo
+servidor. Só vale com as sete condições do III-b (risco declarado e calculado pelo
+servidor, instruções contra injeção, auditoria sem PII, revogação e interruptor,
+identidade, riscos aceitos na spec). Não se estende ao processamento automático.
 
 > **A classificação por IA existente está DESLIGADA por padrão.** Ela é anterior
 > à constituição e viola os princípios III, IV e VII. O código foi mantido porque
