@@ -7,15 +7,15 @@ divergência derruba o teste do lançador).
 
 ## Permitidas (leitura)
 
-| Grupo               | Ferramentas                                                                                                                                                           |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contexto            | `actual_get_context`, `actual_server_info`, `actual_server_get_version`, `actual_preferences_get`                                                                      |
-| Contas              | `actual_accounts_list`, `actual_accounts_get_balance`, `actual_account_groups_list`, `actual_account_flow_summary`                                                      |
-| Estrutura           | `actual_categories_get`, `actual_category_groups_get`, `actual_payees_get`, `actual_payees_common_list`, `actual_payee_rules_get`, `actual_rules_get`, `actual_tags_list` |
-| Transações          | `actual_transactions_get`, `actual_transactions_filter`, `actual_transactions_aggregate`, `actual_transactions_summary_by_category`, `actual_transactions_summary_by_payee`, `actual_transactions_uncategorized`, `actual_transactions_search_by_month`, `actual_transactions_search_by_category`, `actual_transactions_search_by_payee`, `actual_transactions_search_by_amount` |
-| Orçamento           | `actual_budgets_getMonth`, `actual_budgets_getMonths`, `actual_budgets_get_all`, `actual_budgets_list_available`                                                        |
-| Compromissos        | `actual_schedules_get`, `actual_recurring_expenses_summary`                                                                                                           |
-| Consulta e busca    | `actual_query_run`, `actual_entities_search`, `actual_get_id_by_name`, `actual_notes_get`                                                                              |
+| Grupo            | Ferramentas                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contexto         | `actual_get_context`, `actual_server_info`, `actual_server_get_version`, `actual_preferences_get`                                                                                                                                                                                                                                                                                |
+| Contas           | `actual_accounts_list`, `actual_accounts_get_balance`, `actual_account_groups_list`, `actual_account_flow_summary`                                                                                                                                                                                                                                                               |
+| Estrutura        | `actual_categories_get`, `actual_category_groups_get`, `actual_payees_get`, `actual_payees_common_list`, `actual_payee_rules_get`, `actual_rules_get`, `actual_tags_list`                                                                                                                                                                                                        |
+| Transações       | `actual_transactions_get`, `actual_transactions_filter`, `actual_transactions_aggregate`, `actual_transactions_summary_by_category`, `actual_transactions_summary_by_payee`, `actual_transactions_uncategorized`, `actual_transactions_search_by_month`, `actual_transactions_search_by_category`, `actual_transactions_search_by_payee`, `actual_transactions_search_by_amount` |
+| Orçamento        | `actual_budgets_getMonth`, `actual_budgets_getMonths`, `actual_budgets_get_all`, `actual_budgets_list_available`                                                                                                                                                                                                                                                                 |
+| Compromissos     | `actual_schedules_get`, `actual_recurring_expenses_summary`                                                                                                                                                                                                                                                                                                                      |
+| Consulta e busca | `actual_query_run`, `actual_entities_search`, `actual_get_id_by_name`, `actual_notes_get`                                                                                                                                                                                                                                                                                        |
 
 ## Proibidas (a lista inteira de escrita e administração)
 
@@ -37,11 +37,11 @@ Qualquer ferramenta cujo nome termine em `_create`, `_update`, `_delete`,
 Entrada: texto (qualquer resposta de ferramenta do servidor, serializada).
 Saída: o mesmo texto com:
 
-| Padrão                                   | Substituição        |
-| ---------------------------------------- | ------------------- |
-| CPF: `123.456.789-09` ou 11 dígitos      | `[CPF]`             |
-| CNPJ: `12.345.678/0001-95` ou 14 dígitos | `[CNPJ]`            |
-| Cartão: 13–19 dígitos que passam em Luhn | `[CARTAO]`          |
+| Padrão                                           | Substituição     |
+| ------------------------------------------------ | ---------------- |
+| CPF: `123.456.789-09` ou 11 dígitos              | `[CPF]`          |
+| CNPJ: `12.345.678/0001-95` ou 14 dígitos         | `[CNPJ]`         |
+| Cartão: 13–19 dígitos que passam em Luhn         | `[CARTAO]`       |
 | `ag`/`agência` + dígitos; `conta`/`cc` + dígitos | rótulo + `[NUM]` |
 
 Propriedades exigidas (viram teste): idempotente; não altera valores monetários

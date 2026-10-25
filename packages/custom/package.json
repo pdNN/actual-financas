@@ -1,0 +1,20 @@
+{
+  "name": "@actual-financas/custom",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Código custom do actual-financas (fora do upstream). Hoje: ponte MCP somente leitura (specs/005).",
+  "type": "module",
+  "scripts": {
+    "test": "vitest --run",
+    "typecheck": "tsgo -b"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "actual-api-client": "npm:@actual-app/api@26.10.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "vitest": "^5.0.0"
+  }
+}
