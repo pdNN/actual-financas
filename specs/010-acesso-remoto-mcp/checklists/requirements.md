@@ -29,7 +29,7 @@
 
 ## Conformidade com a Constituição
 
-- [x] A feature respeita os princípios de .specify/memory/constitution.md
+- [ ] A feature respeita os princípios de .specify/memory/constitution.md _(consulta: sim; **escrita conflita com o III vigente** — emenda decidida pelo Pedro, pendente)_
 - [x] Violações necessárias estão sinalizadas para justificar no plano
 
 ## Notas da validação
@@ -37,6 +37,7 @@
 - **Marcadores**: os 3 foram respondidos pelo Pedro em 2026-10-25 e registrados em
   _Clarificações_ na spec: 24h (RF-023), teto de R$ 20/mês (RF-024), Julia já
   nesta versão (RF-027). Nenhum pendente.
+- **Ampliação 2 (2026-10-25)**: escrita total pelo MCP (RF-029 a RF-037, CS-013 a CS-016, História 4). Decisões do Pedro: sem travas no servidor, IA avalia o risco, Pedro e Julia escrevem, **emendar o princípio III**. O item de conformidade com a constituição fica **desmarcado** até a emenda ser mergeada.
 - **Ampliação de escopo (2026-10-25)**: pedido do Pedro de funcionar em qualquer
   provedor de IA → RF-028 e CS-012; o item sobre outros clientes saiu de
   "bônus" e passou a requisito.

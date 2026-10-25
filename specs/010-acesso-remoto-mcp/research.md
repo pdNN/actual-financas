@@ -89,13 +89,13 @@
 ### R-8 — Credencial do Actual: token de sessão **só no Secret Manager**
 
 - **Decisão**: o serviço lê o Actual com o **token de sessão do Pedro** (o mesmo que a 005 usa localmente), montado a partir do Secret Manager (`ACTUAL_SESSION_TOKEN`, `ACTUAL_SERVER_URL`, `ACTUAL_BUDGET_SYNC_ID`, e a senha do orçamento se houver). Conta de serviço do Cloud Run com `secretAccessor` **apenas** nesses secrets e acesso ao bucket de estado **apenas**. Nada disso chega ao Claude, ao celular ou à tela de conexão (RF-009).
-- **Risco residual (registrado)**: o token é equivalente a uma senha e, no Actual, **também escreve**. Se o ambiente do serviço fosse comprometido, o atacante poderia escrever no Actual mesmo que _nosso código_ seja só leitura. Mitigações: sem shell/exec no Cloud Run, SA mínima, imagem sem ferramentas, rotação documentada. Alternativa mais forte (conta Google _dedicada_ para o serviço) não reduz o poder de escrita no Actual hoje (não há papel só-leitura), então **fica como melhoria futura**, não requisito.
+- **Risco residual (registrado)**: o token é equivalente a uma senha e, no Actual, **também escreve**. Com a escrita agora **parte do produto** (R-18), esse poder é usado de propósito; o risco passa a ser o de qualquer comprometimento do ambiente do serviço, que poderia escrever fora das nossas ferramentas. Mitigações: sem shell/exec no Cloud Run, SA mínima, imagem sem ferramentas, rotação documentada. Alternativa mais forte (conta Google _dedicada_ para o serviço) não reduz o poder de escrita no Actual hoje (não há papel só-leitura), então **fica como melhoria futura**, não requisito.
 
 ### R-9 — **Paridade com o Mac**: o protocolo passa a morar no servidor
 
 - **Decisão**: o texto de _Definições_ e _Protocolo de resposta_ do subagente (despesa/receita externas, `sobra = receita − despesa (provisório)`, período explícito, nunca devolver zeros sem dados, recusar escrita, bloco de confiança/completude) vira um módulo `protocol.ts` e é entregue ao cliente no campo **`instructions`** do MCP e nas descrições das ferramentas. O subagente local continua existindo; **um teste** compara as frases-chave dos dois para não divergirem.
 - **Justificativa**: F-8 — sem isso, o celular responderia com os mesmos _números_, mas sem as mesmas _regras_ (RF-002, CS-003 ficariam só parcialmente verdadeiros).
-- **Limite honesto**: `instructions` é orientação ao modelo, não garantia. O que **não pode falhar** continua garantido por código: somente leitura (não há ferramenta de escrita), máscara de PII (toda resposta passa por `maskDeep`), exclusão de transferências (dentro das ferramentas).
+- **Limite honesto**: `instructions` é orientação ao modelo, não garantia. O que **não pode falhar** continua garantido por código: consultas sem efeito colateral (não há ferramenta de escrita), máscara de PII (toda resposta passa por `maskDeep`), exclusão de transferências (dentro das ferramentas).
 - **Dependência**: o bloco de completude e as ferramentas de duplicatas e compromissos pertencem à evolução da 005 (histórias 2 e 3). Esta feature entrega **paridade com o que a 005 tiver**: toda ferramenta nova nasce em `createFinancasServer` e aparece nos dois caminhos.
 
 ### R-10 — Frescor dos dados
@@ -160,6 +160,24 @@
 
 ---
 
+### R-18 — Escrita: executar, informar o risco e deixar a IA decidir
+
+- **Decisão (Pedro, 2026-10-25)**: escopo **total** (transações, regras, categorias/grupos, contas, orçamento; criar/editar/apagar). **Sem travas no servidor**: nada de aprovação fora da conversa, escopo separado, teto de lote ou desfazer. O servidor **declara** o risco na descrição de cada ferramenta, **devolve** mensagens de risco e efeito em toda resposta, oferece `simular` opcional e mantém um **interruptor operacional**. Pedro e Julia escrevem. Contrato: `contracts/ferramentas-escrita.md`.
+- **Consequência de arquitetura**: escritor **separado** do leitor (`BudgetSource` continua sem escrita). Consultas nunca recebem o escritor ⇒ a garantia de "consulta não altera nada" continua verificável por teste. Escritas são serializadas e terminam em `sync` para chegar ao app do casal em ≤ 1 min.
+- **Alternativas oferecidas e recusadas pelo Pedro**: (a) confirmação **híbrida por risco** com aprovação fora da conversa nas operações perigosas — a única que protege contra injeção por texto de extrato independentemente do modelo; (b) escopo de escrita por aparelho, teto de lote e diário com **desfazer**; (c) escrita só para o Pedro.
+- **O que isso custa (registrado, não escondido)**: (1) a proteção contra descrição maliciosa passa a depender **do modelo do provedor** (A14); (2) `apagar_*` é **irreversível** — a rede é o backup diário da VM (A15); (3) um acesso vazado escreve sem limite até ser encerrado (A16). Mitigações operacionais mantidas: revogação ≤ ~1 min, auditoria de toda escrita (sem valores), interruptor de escrita e a mensagem de risco no histórico.
+- **Reabrir se**: a IA gravar algo errado ou perigoso em uso real. As opções (a) e (b) são acréscimos de servidor que não mudam o contrato das ferramentas — a escolha de hoje não fecha a porta.
+- **Spike W-1**: confirmar na versão fixada do cliente do Actual (26.10.0) as operações de cada linha do catálogo (adicionar/atualizar/apagar transação; criar/atualizar/apagar categoria e grupo; criar/atualizar/apagar regra; criar/atualizar/fechar/reabrir/apagar conta; definir valor de orçamento) e se a transação **conciliada** é identificável. O que não existir vira "indisponível" com mensagem clara. Plano B: nenhum — não se escreve direto no SQLite do Actual.
+
+### R-19 — Governança: emenda ao princípio III antes da escrita
+
+- **Decisão (Pedro)**: **emendar o princípio III** para permitir que a IA decida com base nas mensagens de risco, em vez do texto atual ("NÃO DEVE gravar categoria sem confirmação do usuário ou sem confiança acima de um limiar configurável").
+- **Como**: `/speckit.constitution`, PR próprio, com Relatório de Impacto de Sincronização. Pelo versionamento da constituição, redefinir de forma incompatível um princípio é **MAIOR** (2.0.0); isso é da skill decidir ao avaliar o texto final.
+- **O que a emenda deve preservar**: a ordem "regras nativas → cache → IA" na classificação **em lote automática** (feature `003`); a observabilidade da taxa de acionamento da IA; e a realimentação da camada determinística quando houver acertos confirmados (regra criada, cenário 2 da história 4).
+- **Efeito no cronograma**: histórias 1–3 não esperam; história 4 espera. `/speckit.tasks` separa as fases.
+
+---
+
 ## Spikes (resolver no início do `/speckit.tasks`/implement)
 
 | #   | O que confirmar                                                                                                                                                                                 | Plano B                                                                                                                                             |
@@ -170,5 +188,6 @@
 | S-4 | IP de origem em `X-Forwarded-For` no Cloud Run (qual posição confiar) para os limites (e para o filtro de faixa opcional)                                                                       | Limites só globais, sem IP                                                                                                                          |
 | S-5 | Cliente OAuth do Google em modo de teste emitindo `id_token` com `email` para Pedro e Julia                                                                                                     | Publicar o app (escopos não sensíveis dispensam verificação)                                                                                        |
 | S-6 | Imagem enxuta com módulo nativo (ver R-16)                                                                                                                                                      | `npm install` isolado                                                                                                                               |
+| W-1 | Operações de escrita da API do Actual fixada (R-18) e detecção de transação conciliada                                                                                                          | Item vira "indisponível" na ferramenta                                                                                                              |
 
 Nenhum `NECESSITA ESCLARECIMENTO` restante.

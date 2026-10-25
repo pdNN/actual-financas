@@ -18,6 +18,8 @@
   "versao": 1,
   // Carimbo de "encerrar tudo": qualquer acesso concedido ANTES disto é inválido.
   "revogadoAntesDe": null, // ISO-8601 ou null
+  // Interruptor operacional de escrita (contracts/ferramentas-escrita.md). Padrão true.
+  "escritaHabilitada": true,
   "acessos": {
     "a_7f3k2m9q": {
       // id aleatório, curto, sem significado
